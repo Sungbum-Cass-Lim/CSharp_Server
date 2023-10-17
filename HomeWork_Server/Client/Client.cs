@@ -6,30 +6,40 @@ namespace Server_Homework
 {
     public class Client
     {
-        public Socket ServerSocket = null;
+        private Client() { }
+        private static readonly Lazy<Client> _Instance = new Lazy<Client>(() => new Client());
+        public static Client Instance { get { return _Instance.Value; } }
+
+        public Socket ClientSocket = null;
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Server Start");
+            Console.WriteLine("State: Create Socket");
+            Client.Instance.CreateSocket();
+
+            while(true)
+            {
+
+            }
         }
 
-        public void Bind()
+        public void CreateSocket()
         {
-            ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            ServerSocket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000));
+            ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            Listen();
+            Connect();
         }
 
-        public void Listen()
+        void Connect()
         {
-            ServerSocket.Listen(5);
-            ServerSocket.BeginAccept(Accept, null);
+            Console.WriteLine("State: Try Connect...");
+
+            ClientSocket.BeginConnect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000), EndConnect,null);
         }
 
-        public void Accept(IAsyncResult Result)
+        void EndConnect(IAsyncResult Result)
         {
-            Listen();
+            Console.WriteLine("State: Success Connect!");
         }
     }
 }
