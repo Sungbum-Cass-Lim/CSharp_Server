@@ -6,13 +6,13 @@ namespace Server_Homework
 {
     public class ClientData
     {
-        private int UserId = default(int);
-        private Socket ClientSocket = default(Socket);
+        public int UserId = default(int);
+        public Socket UserSocket = default(Socket);
 
         public ClientData(int Id, Socket Socket)
         {
             this.UserId = Id;
-            this.ClientSocket = Socket;
+            this.UserSocket = Socket;
         }
     }
 }
