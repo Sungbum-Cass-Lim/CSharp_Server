@@ -14,6 +14,15 @@ namespace Server_Homework
         public int MyId = 0;
         public Socket ClientSocket = null;
 
+        public TcpPacketHeader HeaderSturct;
+        public TcpPacketData DataSturct;
+
+        public int PacketSize = 0;
+        public Packet ReceivePacket = new Packet();
+        public Packet SendPacket = new Packet();
+        public byte[] SendBuffer;
+        public byte[] RecvBuffer;
+
         static void Main(string[] args)
         {
             Console.WriteLine("State: Create Socket");
@@ -29,6 +38,10 @@ namespace Server_Homework
         {
             ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
+            PacketSize = Marshal.SizeOf(HeaderSturct) + Marshal.SizeOf(DataSturct);
+            SendBuffer = new byte[PacketSize];
+            RecvBuffer = new byte[PacketSize];
+
             Connect();
         }
 
@@ -43,27 +56,30 @@ namespace Server_Homework
         {
             Console.WriteLine("State: Success Connect!");
             Send("SendConnetMsg: Success Connect");
+
+            ClientSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, null);
         }
 
         public void Send(string Msg)
         {
-            TcpPacketHeader Header = new TcpPacketHeader(1,2,3,4);
-            TcpPacketData Data = new TcpPacketData(MyId, Msg);
+            HeaderSturct = new TcpPacketHeader(1,2,3,4);
+            DataSturct = new TcpPacketData(MyId, Msg);
 
-            Packet SendPacket = new Packet();
-            byte[] SendData = SendPacket.Write(Header, Data);
-
-            Packet RecvPacket = new Packet();
+            byte[] SendData = SendPacket.Write(HeaderSturct, DataSturct);
 
             ClientSocket.Send(SendData);
         }
 
-        public void Receive(byte[] ReceiveData)
+        public void Receive(IAsyncResult Result)
         {
-            Packet ReceivePacket = new Packet();
+            ClientSocket.EndReceive(Result);
 
-            ReceivePacket = ReceivePacket.Read(ReceiveData);
+            ReceivePacket.Read(RecvBuffer);
+            MyId = ReceivePacket.PacketData.UserId;
+
             Console.WriteLine($"RecvConnectMsg:Welcome!, Your ID Number Is {ReceivePacket.PacketData.UserId}");
+
+            ClientSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, null);
         }
     }
 }

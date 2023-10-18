@@ -60,10 +60,14 @@ namespace Server_Homework
         public void Accept(IAsyncResult Result)
         {
             Console.WriteLine("Server State: Accept Client Socket");
-
             ClientData ClinetSocket =  new ClientData(ClientList.Count, ServerSocket.EndAccept(Result));
 
-            ClinetSocket.UserSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, null);
+            HeaderSturct = new TcpPacketHeader(1, 2, 3, 4);
+            DataSturct = new TcpPacketData(ClientList.Count, "");
+            byte[] SendData = SendPacket.Write(HeaderSturct, DataSturct);
+            ClinetSocket.UserSocket.Send(SendData);
+
+            ClinetSocket.UserSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, ClinetSocket);
 
             ClientList.Add(ClinetSocket);
             ClientDictionary.Add(ClinetSocket.UserId, ClinetSocket.UserSocket);
@@ -72,9 +76,14 @@ namespace Server_Homework
         }
 
         #region Send/Receive Func
-        public void SendMe()
+        public void SendMe(int Id, string Msg)
         {
+            HeaderSturct = new TcpPacketHeader(1, 2, 3, 4);
+            DataSturct = new TcpPacketData(Id, Msg);
 
+            byte[] SendData = SendPacket.Write(HeaderSturct, DataSturct);
+
+            ClientDictionary[Id].Send(SendData);
         }
         public void SendOther()
         {
@@ -87,10 +96,16 @@ namespace Server_Homework
 
         public void Receive(IAsyncResult Result)
         {
+            ClientData Data = Result.AsyncState as ClientData;
+            Data.UserSocket.EndReceive(Result);
+
             ReceivePacket.Read(RecvBuffer);
 
             Console.WriteLine(ReceivePacket.PacketData.UserId);
             Console.WriteLine(ReceivePacket.PacketData.Message);
+
+            //SendMe(ReceivePacket.PacketData.UserId, ReceivePacket.PacketData.Message);
+            Data.UserSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, Data);
         }
         #endregion
     }
