@@ -30,7 +30,7 @@ namespace Server_Homework
     {
         [MarshalAs(UnmanagedType.I4)]
         public int UserId;
-        [MarshalAs(UnmanagedType.LPWStr)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string Message;
 
         public TcpPacketData(int Id, string Msg)
