@@ -92,15 +92,14 @@ namespace Server_Homework
         public void Receive(IAsyncResult Result)
         {
             int Id = (int)Result.AsyncState;
-            ClientDictionary[Id].EndReceive(Result);
 
             Packet RecvPacket = new Packet();
             RecvPacket.Read(RecvBuffer);
 
-            Console.WriteLine(RecvPacket.PacketData.UserId);
-            Console.WriteLine(RecvPacket.PacketData.Message);
+            Console.Write($"ID: {RecvPacket.PacketData.UserId} -> ");
+            Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
 
-            RecvBuffer = new byte[MAX_BUFFER_SIZE];
+            Send(Id, RecvPacket.PacketData.Message);
             ClientDictionary[Id].BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, Id);
         }
         #endregion

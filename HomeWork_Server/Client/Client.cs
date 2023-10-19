@@ -60,7 +60,7 @@ namespace Server_Homework
 
         public void Send(string Msg)
         {
-            Console.WriteLine("Send");
+            Console.WriteLine($"Send -> Message: {Msg}");
             TcpPacketHeader HeaderSturct = new TcpPacketHeader(1, 2, 3, 4);
             TcpPacketData DataSturct = new TcpPacketData(MyId, Msg);
 
@@ -76,6 +76,8 @@ namespace Server_Homework
             Packet RecvPacket = new Packet();
             RecvPacket.Read(RecvBuffer);
 
+            Console.Write($"Receive -> ");
+            Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
             ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, null);
         }
 
