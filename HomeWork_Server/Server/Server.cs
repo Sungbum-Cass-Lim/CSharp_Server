@@ -20,7 +20,7 @@ namespace Server_Homework
         public int IDCount = 0;
 
         public List<ClientData> ClientList = new List<ClientData>();
-        public Dictionary<int, Socket> ClientDictionary = new Dictionary<int, Socket>();
+        public Dictionary<int, ClientData> ClientDictionary = new Dictionary<int, ClientData>();
 
         public byte[] SendBuffer = new byte[MAX_BUFFER_SIZE];
         public byte[] RecvBuffer = new byte[MAX_BUFFER_SIZE];
@@ -62,7 +62,7 @@ namespace Server_Homework
             ClinetSocket.UserSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, ClinetSocket.UserId);
 
             ClientList.Add(ClinetSocket);
-            ClientDictionary.Add(ClinetSocket.UserId, ClinetSocket.UserSocket);
+            ClientDictionary.Add(ClinetSocket.UserId, ClinetSocket);
 
             Send(ClinetSocket.UserId, "Welcome To This Server!");
 
@@ -78,7 +78,7 @@ namespace Server_Homework
 
             byte[] SendData = new Packet().Write(HeaderStrurct, DataStrurct);
 
-            ClientDictionary[Id].Send(SendData);
+            ClientDictionary[Id].UserSocket.Send(SendData);
         }
         public void SendOther(int Id, string Msg)
         {
@@ -118,8 +118,26 @@ namespace Server_Homework
             Console.Write($"ID: {RecvPacket.PacketData.UserId} -> ");
             Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
 
-            SendAll(Id, RecvPacket.PacketData.Message);
-            ClientDictionary[Id].BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, Id);
+            Send(Id, RecvPacket.PacketData.Message);
+
+            if (RecvPacket.PacketData.Message == "Q" || RecvPacket.PacketData.Message == "q")
+            {
+                Disconnect(RecvPacket.PacketData.UserId);
+                return;
+            }
+
+            ClientDictionary[Id].UserSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, Id);
+        }
+
+        public void Disconnect(int Id)
+        {
+            ClientDictionary[Id].UserSocket.Shutdown(SocketShutdown.Both);
+            ClientDictionary[Id].UserSocket.Close();
+
+            ClientList.Remove(ClientDictionary[Id]);
+            ClientDictionary.Remove(Id);
+
+            Console.WriteLine($"Disconnect Clinet ID: {Id}");
         }
         #endregion
     }

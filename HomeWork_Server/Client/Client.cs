@@ -32,9 +32,7 @@ namespace Server_Homework
                 string Message = Console.ReadLine();
 
                 if (Message != null)
-                {
                     Client.Instance.Send(Message);
-                }
             }
         }
 
@@ -78,7 +76,22 @@ namespace Server_Homework
 
             Console.Write($"Receive ID: {RecvPacket.PacketData.UserId} -> ");
             Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
+
+            if (RecvPacket.PacketData.Message == "Q" || RecvPacket.PacketData.Message == "q")
+            {
+                Disconnect();
+                return;
+            }
+
             ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, null);
+        }
+
+        public void Disconnect()
+        {
+            ClientSocket.Shutdown(SocketShutdown.Both);
+            ClientSocket.Close();
+
+            Console.WriteLine($"Disconnect Server");
         }
 
         #region OneCallFunc
