@@ -80,13 +80,32 @@ namespace Server_Homework
 
             ClientDictionary[Id].Send(SendData);
         }
-        public void SendOther()
+        public void SendOther(int Id, string Msg)
         {
+            TcpPacketHeader HeaderStrurct = new TcpPacketHeader(1, 2, 3, 4);
+            TcpPacketData DataStrurct = new TcpPacketData(Id, Msg);
 
+            byte[] SendData = new Packet().Write(HeaderStrurct, DataStrurct);
+
+            foreach (var Client in ClientList)
+            {
+                if (Client.UserId != Id)
+                {
+                    Client.UserSocket.Send(SendData);
+                }
+            }
         }
-        public void SendAll()
+        public void SendAll(int Id, string Msg)
         {
+            TcpPacketHeader HeaderStrurct = new TcpPacketHeader(1, 2, 3, 4);
+            TcpPacketData DataStrurct = new TcpPacketData(Id, Msg);
 
+            byte[] SendData = new Packet().Write(HeaderStrurct, DataStrurct);
+
+            foreach (var Client in ClientList)
+            {
+                Client.UserSocket.Send(SendData);
+            }
         }
 
         public void Receive(IAsyncResult Result)
@@ -99,7 +118,7 @@ namespace Server_Homework
             Console.Write($"ID: {RecvPacket.PacketData.UserId} -> ");
             Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
 
-            Send(Id, RecvPacket.PacketData.Message);
+            SendAll(Id, RecvPacket.PacketData.Message);
             ClientDictionary[Id].BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, Id);
         }
         #endregion

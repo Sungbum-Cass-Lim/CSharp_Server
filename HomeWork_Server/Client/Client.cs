@@ -76,7 +76,7 @@ namespace Server_Homework
             Packet RecvPacket = new Packet();
             RecvPacket.Read(RecvBuffer);
 
-            Console.Write($"Receive -> ");
+            Console.Write($"Receive ID: {RecvPacket.PacketData.UserId} -> ");
             Console.WriteLine($"Message: {RecvPacket.PacketData.Message}");
             ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, null);
         }
