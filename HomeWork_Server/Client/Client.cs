@@ -7,21 +7,20 @@ namespace Server_Homework
 {
     public class Client
     {
+        const short MAX_PACKET_SIZE = 1024;
+        const short MAX_BUFFER_SIZE = 1024;
+
         private Client() { }
         private static readonly Lazy<Client> _Instance = new Lazy<Client>(() => new Client());
         public static Client Instance { get { return _Instance.Value; } }
 
-        public int MyId = 0;
         public Socket ClientSocket = null;
 
-        public TcpPacketHeader HeaderSturct;
-        public TcpPacketData DataSturct;
+        public int MyId = 0;
+        public bool IsConnect = false;
 
-        public int PacketSize = 0;
-        public Packet ReceivePacket = new Packet();
-        public Packet SendPacket = new Packet();
-        public byte[] SendBuffer;
-        public byte[] RecvBuffer;
+        public byte[] SendBuffer = new byte[MAX_BUFFER_SIZE];
+        public byte[] RecvBuffer = new byte[MAX_BUFFER_SIZE];
 
         static void Main(string[] args)
         {
@@ -30,17 +29,18 @@ namespace Server_Homework
 
             while(true)
             {
+                string Message = Console.ReadLine();
 
+                if (Message != null)
+                {
+                    Client.Instance.Send(Message);
+                }
             }
         }
 
         public void CreateSocket()
         {
             ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            PacketSize = Marshal.SizeOf(HeaderSturct) + Marshal.SizeOf(DataSturct);
-            SendBuffer = new byte[PacketSize];
-            RecvBuffer = new byte[PacketSize];
 
             Connect();
         }
@@ -55,17 +55,16 @@ namespace Server_Homework
         void EndConnect(IAsyncResult Result)
         {
             Console.WriteLine("State: Success Connect!");
-            Send("SendConnetMsg: Success Connect");
-
-            ClientSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, null);
+            ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, ConnectReceive, null);
         }
 
         public void Send(string Msg)
         {
-            HeaderSturct = new TcpPacketHeader(1,2,3,4);
-            DataSturct = new TcpPacketData(MyId, Msg);
+            Console.WriteLine("Send");
+            TcpPacketHeader HeaderSturct = new TcpPacketHeader(1, 2, 3, 4);
+            TcpPacketData DataSturct = new TcpPacketData(MyId, Msg);
 
-            byte[] SendData = SendPacket.Write(HeaderSturct, DataSturct);
+            byte[] SendData = new Packet().Write(HeaderSturct, DataSturct);
 
             ClientSocket.Send(SendData);
         }
@@ -74,12 +73,27 @@ namespace Server_Homework
         {
             ClientSocket.EndReceive(Result);
 
-            ReceivePacket.Read(RecvBuffer);
-            MyId = ReceivePacket.PacketData.UserId;
+            Packet RecvPacket = new Packet();
+            RecvPacket.Read(RecvBuffer);
 
-            Console.WriteLine($"RecvConnectMsg:Welcome!, Your ID Number Is {ReceivePacket.PacketData.UserId}");
-
-            ClientSocket.BeginReceive(RecvBuffer, 0, PacketSize, SocketFlags.None, Receive, null);
+            ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, null);
         }
+
+        #region OneCallFunc
+        public void ConnectReceive(IAsyncResult Result)
+        {
+            ClientSocket.EndReceive(Result);
+
+            Packet RecvPacket = new Packet();
+            RecvPacket.Read(RecvBuffer);
+
+            MyId = RecvPacket.PacketData.UserId;
+
+            Console.WriteLine($"Your ID: {MyId}, {RecvPacket.PacketData.Message}");
+            ClientSocket.BeginReceive(RecvBuffer, 0, MAX_PACKET_SIZE, SocketFlags.None, Receive, null);
+
+            IsConnect = true;
+        }
+        #endregion
     }
 }
