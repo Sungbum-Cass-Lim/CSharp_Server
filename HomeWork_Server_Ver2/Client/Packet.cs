@@ -4,6 +4,11 @@ using System.Runtime.InteropServices;
 
 namespace Server_Homework
 {
+    public struct TcpHeader
+    {
+
+    }
+
     public class Packet
     {
 
