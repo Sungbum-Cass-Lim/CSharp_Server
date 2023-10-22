@@ -24,7 +24,8 @@ namespace Server_Homework
 
             while (true)
             {
-
+                TcpHeader header = new TcpHeader();
+                BitConverter.(header);
             }
         }
 

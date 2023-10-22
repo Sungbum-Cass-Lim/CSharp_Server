@@ -39,7 +39,6 @@ namespace Server_Homework
         public void CreateSocket()
         {
             ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
             Connect();
         }
 
