@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Buffers;
 using System.ComponentModel;
+using System.Data.SqlTypes;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection.PortableExecutable;
@@ -50,10 +52,7 @@ namespace Server_Homework
             Pkt.Id = Id;
 
             //Struct안 Byte*에 fixed에서 고정된 Byte*를 할당
-            fixed (byte* ByteArray = Encoding.Unicode.GetBytes(Msg))
-            {
-                Pkt.Message = ByteArray;
-            }
+            Pkt.Message = Encoding.Unicode.GetBytes(Msg);
         }
 
         ~Packet()
@@ -72,7 +71,7 @@ namespace Server_Homework
             this.ReadBuffer = ReadBuffer;
             Pkt = PacketConverter.ConvertByteToPacket<TcpPacket>(this.ReadBuffer);
 
-            Message = Encoding.Unicode.GetString(Pkt.Message, Pkt.MessageLength);
+            Message = Encoding.Unicode.GetString(Pkt.Message);
 
             return Pkt;
         }
@@ -98,7 +97,7 @@ namespace Server_Homework
             return Bytes;
         }
 
-        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : unmanaged
+        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : struct
         {
             //고정된 Byte*를 만들어 Byte배열 형태로 받아온 주소값을 할당
             fixed (byte* Pointer = PacketBuffer)
