@@ -6,10 +6,21 @@ using System.Runtime.InteropServices;
 namespace Server_Homework
 {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public unsafe struct TcpPacketHeader
+    public unsafe struct TcpPacket
     {
-        public fixed int Id[2];
-        public fixed char Message[128];
+        //Header
+        [MarshalAs(UnmanagedType.I4)]
+        public int SrcNum;
+        [MarshalAs(UnmanagedType.I4)]
+        public int AckNum;
+        [MarshalAs(UnmanagedType.I4)]
+        public int Size;
+
+        //Data
+        [MarshalAs(UnmanagedType.I4)]
+        public int Id;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string Message;
     }
 
     public class Packet
@@ -17,31 +28,34 @@ namespace Server_Homework
 
     }
 
-    public class PacketConverter
+    public static class PacketConverter
     {
-        public PacketConverter(ref TcpPacketHeader Header)
+        public static unsafe byte[] ConvertPacketToByte<T>(T Value) where T : unmanaged
         {
-            TcpPacketHeader Had = new TcpPacketHeader();
+            //Sturct의 주소값을 Byte* 형식으로 변환
+            byte* Pointer = (byte*)&Value;
 
-            unsafe
+            //Byte배열에 Struct크기 만큼의 공간 할당
+            byte[] Bytes = new byte[sizeof(T)];
+
+            //Byte배열에 Byte*의 주소값 할당
+            for(int i = 0; i < sizeof(T); i++)
             {
-                IntPtr a;
-
-                fixed (int* TcpHeader = &Header)
-                {
-
-                }
+                Bytes[i] = Pointer[i];
             }
+
+            //Byte배열 형태로 반환
+            return Bytes;
         }
 
-        public void PacketToByte()
+        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : unmanaged
         {
-
-        }
-
-        public void ByteToPacket()
-        {
-
+            //고정된 Byte*를 만들어 Byte배열 형태로 받아온 주소값을 할당
+            fixed(byte* Pointer = PacketBuffer)
+            {
+                //주소값을 Struct 주소값 형태로 바꾸고 한번 더 *를 사용하여 T형태로 바꾼뒤 반환
+                return *(T*)Pointer;
+            }
         }
     }
 }
