@@ -9,6 +9,8 @@ namespace Server_Homework
         public int UserId = default(int);
         public Socket UserSocket = default(Socket);
 
+        public byte[] Buffer = new byte[64];
+
         public ClientData(int Id, Socket Socket)
         {
             this.UserId = Id;

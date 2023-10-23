@@ -12,6 +12,7 @@ namespace Server_Homework
         public static Client Instance { get { return _Instance.Value; } }
 
         public Socket ClientSocket = null;
+        public byte[] Buffer = new byte[64];
 
         public int MyId = 0;
         public bool IsConnect = false;
@@ -44,6 +45,9 @@ namespace Server_Homework
         void EndConnect(IAsyncResult Result)
         {
             Console.WriteLine("State: Success Connect!");
+
+            ClientSocket.BeginReceive(Buffer, 0, new Packet().Pkt.PacketLength,
+                SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Send(string Msg)
@@ -53,7 +57,15 @@ namespace Server_Homework
 
         public void Receive(IAsyncResult Result)
         {
+            Console.WriteLine("Receive");
 
+            Packet RecvPacket = new Packet();
+            RecvPacket.Read(Buffer);
+
+            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}");
+
+            ClientSocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
+                SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Disconnect()

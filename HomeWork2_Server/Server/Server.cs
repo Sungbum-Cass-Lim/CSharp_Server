@@ -17,6 +17,8 @@ namespace Server_Homework
         public List<ClientData> ClientList = new List<ClientData>();
         public Dictionary<int, ClientData> ClientDictionary = new Dictionary<int, ClientData>();
 
+        public unsafe Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
+
         static void Main(string[] args)
         {
             Console.WriteLine("Server State: Start");
@@ -24,8 +26,7 @@ namespace Server_Homework
 
             while (true)
             {
-                TcpHeader header = new TcpHeader();
-                BitConverter.(header);
+
             }
         }
 
@@ -50,12 +51,15 @@ namespace Server_Homework
         public void Accept(IAsyncResult Result)
         {
             Console.WriteLine("Server State: Accept Client Socket");
-            ClientData ClinetSocket = new ClientData(IDCount, ServerSocket.EndAccept(Result));
+            ClientData ClientSocket = new ClientData(IDCount, ServerSocket.EndAccept(Result));
 
-            ClientList.Add(ClinetSocket);
-            ClientDictionary.Add(ClinetSocket.UserId, ClinetSocket);
+            ClientList.Add(ClientSocket);
+            ClientDictionary.Add(ClientSocket.UserId, ClientSocket);
 
-            Send(ClinetSocket.UserId, "Welcome To This Server!");
+            Send(ClientSocket.UserId, "Welcome To This Server!"); // 클라 첫 접속 메세지
+
+            ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, new Packet().Pkt.PacketLength,
+                SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작
 
             IDCount++;
             Listen();
@@ -64,20 +68,31 @@ namespace Server_Homework
         #region Send/Receive Func
         public void Send(int Id, string Msg)
         {
-            
+            Packet SendPakcet = new Packet(1, 1, Id, Msg);
+            SendPackets.Enqueue(SendPakcet.Pkt);
+
+            ClientDictionary[Id].UserSocket.Send(SendPakcet.Write());
         }
         public void SendOther(int Id, string Msg)
         {
-            
+
         }
         public void SendAll(int Id, string Msg)
         {
-            
+
         }
 
         public void Receive(IAsyncResult Result)
         {
-            
+            ClientData ClientSocket = Result.AsyncState as ClientData;
+
+            Packet RecvPacket = new Packet();
+            RecvPacket.Read(ClientSocket.Buffer);
+
+            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}");
+
+            ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, RecvPacket.Pkt.PacketLength,
+                SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작
         }
 
         public void Disconnect(int Id)
