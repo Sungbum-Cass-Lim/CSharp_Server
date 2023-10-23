@@ -17,7 +17,7 @@ namespace Server_Homework
         public List<ClientData> ClientList = new List<ClientData>();
         public Dictionary<int, ClientData> ClientDictionary = new Dictionary<int, ClientData>();
 
-        public unsafe Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
+        public Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
 
         static void Main(string[] args)
         {

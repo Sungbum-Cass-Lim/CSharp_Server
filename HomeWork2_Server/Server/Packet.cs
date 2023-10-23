@@ -26,8 +26,8 @@ namespace Server_Homework
         [MarshalAs(UnmanagedType.I4)] // Message Length
         public int MessageLength;
 
-        [MarshalAs(UnmanagedType.LPArray)]
-        public byte* Message; // Message Data
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public byte[] Message; // Message Data
     }
 
     public class Packet
