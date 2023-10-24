@@ -22,9 +22,15 @@ namespace Server_Homework
             Console.WriteLine("State: Create Socket");
             Client.Instance.CreateSocket();
 
+            string InputMsg = null;
+
             while (true)
             {
-
+                if ((InputMsg = Console.ReadLine()) != null)
+                {
+                    Client.Instance.Send(InputMsg);
+                    InputMsg = null;
+                }
             }
         }
 
@@ -52,7 +58,8 @@ namespace Server_Homework
 
         public void Send(string Msg)
         {
-
+            Packet SendPacket = new Packet(1, 1, MyId, Msg);
+            ClientSocket.Send(SendPacket.Write());
         }
 
         public void Receive(IAsyncResult Result)
@@ -63,8 +70,17 @@ namespace Server_Homework
             RecvPacket.Read(Buffer);
 
             Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}");
+            if (IsConnect == false)
+            {
+                MyId = RecvPacket.Pkt.Id;
+                IsConnect = true;
+            }
 
-            ClientSocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
+            if (RecvPacket.Message == "Q" || RecvPacket.Message == "q") // 접속 종료
+                Disconnect();
+
+            else
+                ClientSocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
                 SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 

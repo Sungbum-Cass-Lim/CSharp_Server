@@ -52,7 +52,6 @@ namespace Server_Homework
             Pkt.MessageLength = Encoding.Unicode.GetByteCount(Msg);
 
             byte[] CopyByteMsg = Encoding.UTF8.GetBytes(Msg);
-
             int i = 0;
             foreach (char C in Encoding.UTF8.GetChars(CopyByteMsg))
             {

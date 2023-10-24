@@ -75,11 +75,20 @@ namespace Server_Homework
         }
         public void SendOther(int Id, string Msg)
         {
-
+            foreach (ClientData Data in ClientList)
+            {
+                if (Data.UserId != Id)
+                {
+                    Data.UserSocket.Send(new Packet(1, 1, Id, Msg).Write());
+                }
+            }
         }
         public void SendAll(int Id, string Msg)
         {
-
+            foreach (ClientData Data in ClientList)
+            {
+                Data.UserSocket.Send(new Packet(1, 1, Id, Msg).Write());
+            }
         }
 
         public void Receive(IAsyncResult Result)
@@ -89,9 +98,15 @@ namespace Server_Homework
             Packet RecvPacket = new Packet();
             RecvPacket.Read(ClientSocket.Buffer);
 
-            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}");
+            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}"); // Send Message
+            Send(RecvPacket.Pkt.Id, RecvPacket.Message);
+            //SendOther(RecvPacket.Pkt.Id, RecvPacket.Message);
 
-            ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, RecvPacket.Pkt.PacketLength,
+            if (RecvPacket.Message == "Q" || RecvPacket.Message == "q") // 접속 종료
+                Disconnect(RecvPacket.Pkt.Id);
+
+            else
+                ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, RecvPacket.Pkt.PacketLength,
                 SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작
         }
 
