@@ -56,7 +56,7 @@ namespace Server_Homework
             ClientList.Add(ClientSocket);
             ClientDictionary.Add(ClientSocket.UserId, ClientSocket);
 
-            Send(ClientSocket.UserId, "Welcome To This Server!"); // 클라 첫 접속 메세지
+            Send(ClientSocket.UserId, "Welcome Bro"); // 클라 첫 접속 메세지
 
             ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, new Packet().Pkt.PacketLength,
                 SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작

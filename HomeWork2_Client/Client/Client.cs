@@ -12,7 +12,7 @@ namespace Server_Homework
         public static Client Instance { get { return _Instance.Value; } }
 
         public Socket ClientSocket = null;
-        public byte[] Buffer = new byte[64];
+        public byte[] Buffer = new byte[128];
 
         public int MyId = 0;
         public bool IsConnect = false;

@@ -7,11 +7,13 @@ using System.IO;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Unicode;
 
 namespace Server_Homework
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    [Serializable, StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public unsafe struct TcpPacket
     {
         //Header
@@ -28,8 +30,8 @@ namespace Server_Homework
         [MarshalAs(UnmanagedType.I4)] // Message Length
         public int MessageLength;
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public byte[] Message; // Message Data
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 50)]
+        public fixed char Message[50]; // Message Data
     }
 
     public class Packet
@@ -49,11 +51,18 @@ namespace Server_Homework
             Pkt.PacketLength = sizeof(TcpPacket);
             Pkt.MessageLength = Encoding.Unicode.GetByteCount(Msg);
 
-            Pkt.Id = Id;
+            byte[] CopyByteMsg = Encoding.UTF8.GetBytes(Msg);
 
-            //Struct안 Byte*에 fixed에서 고정된 Byte*를 할당
-            Pkt.Message = Encoding.Unicode.GetBytes(Msg);
+            int i = 0;
+            foreach (char C in Encoding.UTF8.GetChars(CopyByteMsg))
+            {
+                Pkt.Message[i] = C;
+                i++;
+            }
+
+            Pkt.Id = Id;
         }
+
 
         ~Packet()
         {
@@ -71,7 +80,10 @@ namespace Server_Homework
             this.ReadBuffer = ReadBuffer;
             Pkt = PacketConverter.ConvertByteToPacket<TcpPacket>(this.ReadBuffer);
 
-            Message = Encoding.Unicode.GetString(Pkt.Message);
+            fixed (char* CopyString = Pkt.Message)
+            {
+                Message = new string(CopyString);
+            }
 
             return Pkt;
         }
