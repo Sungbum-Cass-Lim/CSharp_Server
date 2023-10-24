@@ -7,62 +7,41 @@ namespace Server_Homework
 {
     public class Client
     {
-        private Client() { }
-        private static readonly Lazy<Client> _Instance = new Lazy<Client>(() => new Client());
-        public static Client Instance { get { return _Instance.Value; } }
+        private int MyId = default(int);
+        private Socket MySocket = default(Socket);
 
-        public Socket ClientSocket = null;
-        public byte[] Buffer = new byte[128];
-
-        public int MyId = 0;
-        public bool IsConnect = false;
-
-        static void Main(string[] args)
-        {
-            Console.WriteLine("State: Create Socket");
-            Client.Instance.CreateSocket();
-
-            string InputMsg = null;
-
-            while (true)
-            {
-                if ((InputMsg = Console.ReadLine()) != null)
-                {
-                    Client.Instance.Send(InputMsg);
-                    InputMsg = null;
-                }
-            }
-        }
+        private byte[] Buffer = new byte[128];
+        private bool IsConnect = false;
 
         public void CreateSocket()
         {
-            ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            MySocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             Connect();
         }
 
-        void Connect()
+        private void Connect()
         {
             Console.WriteLine("State: Try Connect...");
 
-            ClientSocket.BeginConnect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000), EndConnect, null);
+            MySocket.BeginConnect(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000), EndConnect, null);
         }
 
-        void EndConnect(IAsyncResult Result)
+        private void EndConnect(IAsyncResult Result)
         {
             Console.WriteLine("State: Success Connect!");
 
-            ClientSocket.BeginReceive(Buffer, 0, new Packet().Pkt.PacketLength,
+            MySocket.BeginReceive(Buffer, 0, new Packet().Pkt.PacketLength,
                 SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Send(string Msg)
         {
             Packet SendPacket = new Packet(1, 1, MyId, Msg);
-            ClientSocket.Send(SendPacket.Write());
+            MySocket.Send(SendPacket.Write());
         }
 
-        public void Receive(IAsyncResult Result)
+        private void Receive(IAsyncResult Result)
         {
             Console.WriteLine("Receive");
 
@@ -80,23 +59,16 @@ namespace Server_Homework
                 Disconnect();
 
             else
-                ClientSocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
+                MySocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
                 SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Disconnect()
         {
-            ClientSocket.Shutdown(SocketShutdown.Both);
-            ClientSocket.Close();
+            MySocket.Shutdown(SocketShutdown.Receive);
+            MySocket.Close();
 
             Console.WriteLine($"Disconnect Server");
         }
-
-        #region OneCallFunc
-        public void ConnectReceive(IAsyncResult Result)
-        {
-
-        }
-        #endregion
     }
 }

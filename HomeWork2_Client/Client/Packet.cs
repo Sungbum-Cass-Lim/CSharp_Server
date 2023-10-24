@@ -1,15 +1,6 @@
 ﻿using System;
-using System.Buffers;
-using System.ComponentModel;
-using System.Data.SqlTypes;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Reflection.PortableExecutable;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
-using System.Text.Unicode;
 
 namespace Server_Homework
 {
@@ -90,7 +81,7 @@ namespace Server_Homework
 
     public class PacketConverter
     {
-        public static unsafe byte[] ConvertPacketToByte<T>(T Value) where T : struct
+        public static unsafe byte[] ConvertPacketToByte<T>(T Value) where T : unmanaged
         {
             //Sturct의 주소값을 Byte* 형식으로 변환
             byte* Pointer = (byte*)&Value;
@@ -108,7 +99,7 @@ namespace Server_Homework
             return Bytes;
         }
 
-        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : struct
+        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : unmanaged
         {
             //고정된 Byte*를 만들어 Byte배열 형태로 받아온 주소값을 할당
             fixed (byte* Pointer = PacketBuffer)

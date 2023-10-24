@@ -7,36 +7,22 @@ namespace Server_Homework
 {
     public class Server
     {
-        private Server() { }
-        private static readonly Lazy<Server> _Instance = new Lazy<Server>(() => new Server());
-        public static Server Instance { get { return _Instance.Value; } }
+        private Socket ServerSocket = null;
+        private int IDCount = 0;
 
-        public Socket ServerSocket = null;
-        public int IDCount = 0;
+        private List<ClientSocket> ClientList = new List<ClientSocket>();
+        private Dictionary<int, ClientSocket> ClientDictionary = new Dictionary<int, ClientSocket>();
 
-        public List<ClientData> ClientList = new List<ClientData>();
-        public Dictionary<int, ClientData> ClientDictionary = new Dictionary<int, ClientData>();
-
-        public Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
-
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Server State: Start");
-            Server.Instance.Initialize();
-
-            while (true)
-            {
-
-            }
-        }
+        private Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
 
         public void Initialize()
         {
-            Console.WriteLine("Server State: Bind");
+            Console.WriteLine("Server State: Start");
 
             ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             ServerSocket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000));
 
+            Console.WriteLine("Server State: Bind");
             Listen();
         }
 
@@ -48,78 +34,28 @@ namespace Server_Homework
             ServerSocket.BeginAccept(Accept, null);
         }
 
-        public void Accept(IAsyncResult Result)
+        private void Accept(IAsyncResult Result)
         {
             Console.WriteLine("Server State: Accept Client Socket");
-            ClientData ClientSocket = new ClientData(IDCount, ServerSocket.EndAccept(Result));
+            ClientSocket ClientSocket = new ClientSocket().Initialize(IDCount, ServerSocket.EndAccept(Result));
 
             ClientList.Add(ClientSocket);
-            ClientDictionary.Add(ClientSocket.UserId, ClientSocket);
+            ClientDictionary.Add(IDCount, ClientSocket);
 
-            Send(ClientSocket.UserId, "Welcome Bro"); // 클라 첫 접속 메세지
+            ClientSocket.Send("Welcome Bro"); // 클라 첫 접속 메세지
 
-            ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, new Packet().Pkt.PacketLength,
-                SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작
+            ClientSocket.BeginReceive(); // 비동기 Receive 시작
 
             IDCount++;
             Listen();
         }
 
-        #region Send/Receive Func
-        public void Send(int Id, string Msg)
+        public void RemoveSocket(int Id)
         {
-            Packet SendPakcet = new Packet(1, 1, Id, Msg);
-            SendPackets.Enqueue(SendPakcet.Pkt);
-
-            ClientDictionary[Id].UserSocket.Send(SendPakcet.Write());
-        }
-        public void SendOther(int Id, string Msg)
-        {
-            foreach (ClientData Data in ClientList)
-            {
-                if (Data.UserId != Id)
-                {
-                    Data.UserSocket.Send(new Packet(1, 1, Id, Msg).Write());
-                }
-            }
-        }
-        public void SendAll(int Id, string Msg)
-        {
-            foreach (ClientData Data in ClientList)
-            {
-                Data.UserSocket.Send(new Packet(1, 1, Id, Msg).Write());
-            }
-        }
-
-        public void Receive(IAsyncResult Result)
-        {
-            ClientData ClientSocket = Result.AsyncState as ClientData;
-
-            Packet RecvPacket = new Packet();
-            RecvPacket.Read(ClientSocket.Buffer);
-
-            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}"); // Send Message
-            Send(RecvPacket.Pkt.Id, RecvPacket.Message);
-            //SendOther(RecvPacket.Pkt.Id, RecvPacket.Message);
-
-            if (RecvPacket.Message == "Q" || RecvPacket.Message == "q") // 접속 종료
-                Disconnect(RecvPacket.Pkt.Id);
-
-            else
-                ClientSocket.UserSocket.BeginReceive(ClientSocket.Buffer, 0, RecvPacket.Pkt.PacketLength,
-                SocketFlags.None, Receive, ClientSocket); // 비동기 Receive 시작
-        }
-
-        public void Disconnect(int Id)
-        {
-            ClientDictionary[Id].UserSocket.Shutdown(SocketShutdown.Both);
-            ClientDictionary[Id].UserSocket.Close();
-
             ClientList.Remove(ClientDictionary[Id]);
             ClientDictionary.Remove(Id);
 
             Console.WriteLine($"Disconnect Clinet ID: {Id}");
         }
-        #endregion
     }
 }
