@@ -36,7 +36,6 @@ namespace Server_Homework
 
         private void Accept(IAsyncResult Result)
         {
-            Console.WriteLine("Server State: Accept Client Socket");
             ClientSocket ClientSocket = new ClientSocket().Initialize(IDCount, ServerSocket.EndAccept(Result));
 
             ClientList.Add(ClientSocket);
@@ -46,8 +45,10 @@ namespace Server_Homework
 
             ClientSocket.BeginReceive(); // 비동기 Receive 시작
 
+            Console.WriteLine($"Server State: Accept Client Socket Number {IDCount}");
+
             IDCount++;
-            Listen();
+            ServerSocket.BeginAccept(Accept, null);
         }
 
         public void RemoveSocket(int Id)
