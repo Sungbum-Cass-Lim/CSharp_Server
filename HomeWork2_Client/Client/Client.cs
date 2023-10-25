@@ -31,8 +31,7 @@ namespace Server_Homework
         {
             Console.WriteLine("State: Success Connect!");
 
-            MySocket.BeginReceive(Buffer, 0, new Packet().Pkt.PacketLength,
-                SocketFlags.None, Receive, null); // 비동기 Receive 시작
+            MySocket.BeginReceive(Buffer, 0, new Packet().GetPacketLength(), SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Send(string Msg)
@@ -48,19 +47,18 @@ namespace Server_Homework
             Packet RecvPacket = new Packet();
             RecvPacket.Read(Buffer);
 
-            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}");
+            Console.WriteLine($"ID:{RecvPacket.GetID()} -> Message:{RecvPacket.GetMessage()}");
             if (IsConnect == false)
             {
-                MyId = RecvPacket.Pkt.Id;
+                MyId = RecvPacket.GetID();
                 IsConnect = true;
             }
 
-            if (RecvPacket.Message == "Q" || RecvPacket.Message == "q") // 접속 종료
+            if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 접속 종료
                 Disconnect();
 
             else
-                MySocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength,
-                SocketFlags.None, Receive, null); // 비동기 Receive 시작
+                MySocket.BeginReceive(Buffer, 0, RecvPacket.GetPacketLength(), SocketFlags.None, Receive, null); // 비동기 Receive 시작
         }
 
         public void Disconnect()

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Dynamic;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -27,9 +28,9 @@ namespace Server_Homework
 
     public class Packet
     {
-        public TcpPacket Pkt = new TcpPacket();
+        private TcpPacket Pkt = new TcpPacket();
 
-        public string Message;
+        private string Message;
 
         private byte[] WriteBuffer;
         private byte[] ReadBuffer;
@@ -44,19 +45,13 @@ namespace Server_Homework
 
             byte[] CopyByteMsg = Encoding.UTF8.GetBytes(Msg);
             int i = 0;
-            foreach (char C in Encoding.UTF8.GetChars(CopyByteMsg))
+            foreach (char C in Encoding.UTF8.GetChars(CopyByteMsg)) //TODO: Fixed 배열에 할당 방법을 몰라서 임시
             {
                 Pkt.Message[i] = C;
                 i++;
             }
 
             Pkt.Id = Id;
-        }
-
-
-        ~Packet()
-        {
-            // 만약 메모리가 할당 되고 해제가 안된다면 여기서 해제 진행
         }
 
         public byte[] Write()
@@ -77,6 +72,25 @@ namespace Server_Homework
 
             return Pkt;
         }
+
+        #region Access PacketData Func
+        public int GetPacketLength()
+        {
+            return Pkt.PacketLength;
+        }
+        public int GetID()
+        {
+            return Pkt.Id;
+        }
+        public int GetMessageLength()
+        {
+            return Pkt.MessageLength;
+        }
+        public string GetMessage()
+        {
+            return Message;
+        }
+        #endregion
     }
 
     public class PacketConverter

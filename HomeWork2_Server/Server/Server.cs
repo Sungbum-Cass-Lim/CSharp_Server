@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -10,17 +11,16 @@ namespace Server_Homework
         private Socket ServerSocket = null;
         private int IDCount = 0;
 
-        private List<ClientSocket> ClientList = new List<ClientSocket>();
-        private Dictionary<int, ClientSocket> ClientDictionary = new Dictionary<int, ClientSocket>();
-
-        private Queue<TcpPacket> SendPackets = new Queue<TcpPacket>();
+        private readonly object LockObj = new object();
+        private List<ClientSocket> ClientSocketList = new List<ClientSocket>();
+        //private ConcurrentBag<ClientSocket> ClientSocketList = new ConcurrentBag<ClientSocket>();
 
         public void Initialize()
         {
             Console.WriteLine("Server State: Start");
 
             ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            ServerSocket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000));
+            ServerSocket.Bind(new IPEndPoint(IPAddress.Any, 7000));
 
             Console.WriteLine("Server State: Bind");
             Listen();
@@ -36,27 +36,46 @@ namespace Server_Homework
 
         private void Accept(IAsyncResult Result)
         {
-            ClientSocket ClientSocket = new ClientSocket().Initialize(IDCount, ServerSocket.EndAccept(Result));
+            lock (this)
+            {
+                ClientSocket ClientSocket = new ClientSocket().Initialize(IDCount, ServerSocket.EndAccept(Result));
 
-            ClientList.Add(ClientSocket);
-            ClientDictionary.Add(IDCount, ClientSocket);
+                ClientSocketList.Add(ClientSocket);
 
-            ClientSocket.Send("Welcome Bro"); // 클라 첫 접속 메세지
+                ClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+                Console.WriteLine($"Server State: Accept Client Socket Number {IDCount}");
 
-            ClientSocket.BeginReceive(); // 비동기 Receive 시작
-
-            Console.WriteLine($"Server State: Accept Client Socket Number {IDCount}");
-
-            IDCount++;
-            ServerSocket.BeginAccept(Accept, null);
+                IDCount++;
+                ServerSocket.BeginAccept(Accept, null);
+            }
         }
 
-        public void RemoveSocket(int Id)
+        public void MultiCast(int Id, string Msg)
         {
-            ClientList.Remove(ClientDictionary[Id]);
-            ClientDictionary.Remove(Id);
+            foreach (ClientSocket ClientSocket in ClientSocketList)
+            {
+                if (ClientSocket.GetId() != Id)
+                {
+                    ClientSocket.Send(Id, Msg);
+                }
+            }
+        }
 
-            Console.WriteLine($"Disconnect Clinet ID: {Id}");
+        public void Broadcast(int Id, string Msg)
+        {
+            foreach (ClientSocket ClientSocket in ClientSocketList)
+            {
+                ClientSocket.Send(Id, Msg);
+            }
+        }
+
+        public void RemoveSocket(ClientSocket TargetSocket)
+        {
+            lock (LockObj)
+            {
+                Console.WriteLine($"Disconnect Clinet ID: {TargetSocket.GetId()}");
+                ClientSocketList.RemoveAt(TargetSocket.GetId());
+            }
         }
     }
 }

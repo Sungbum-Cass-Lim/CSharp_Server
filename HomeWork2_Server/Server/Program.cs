@@ -8,10 +8,10 @@ namespace Server_Homework
 {
     internal class Program
     {
-        public static Server MainServer = new Server();
-
         static void Main(string[] args)
         {
+            Server MainServer = new Server();
+
             MainServer.Initialize();
 
             while (true)

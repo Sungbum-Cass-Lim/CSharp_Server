@@ -16,44 +16,48 @@ namespace Server_Homework
             MyId = Id;
             MySocket = socket;
 
+            MySocket.BeginReceive(Buffer, 0, new Packet().GetPacketLength(), SocketFlags.None, Receive, null);
             return this;
         }
 
-        #region Send
-        public void Send(string Msg)
+        public int GetId()
         {
-            Packet SendPakcet = new Packet(1, 1, MyId, Msg);
+            return MyId; 
+        }
+
+        #region Send
+        public void Send(int Id, string Msg)
+        {
+            Packet SendPakcet = new Packet(1, 1, Id, Msg);
 
             MySocket.Send(SendPakcet.Write());
         }
+
         public void SendOther(string Msg)
         {
-
+            Program.MainServer.MultiCast(MyId, Msg);
         }
         public void SendAll(string Msg)
         {
-
+            Program.MainServer.Broadcast(MyId, Msg);
         }
         #endregion
 
         #region Receive
-        public void BeginReceive()
-        {
-            MySocket.BeginReceive(Buffer, 0, new Packet().Pkt.PacketLength, SocketFlags.None, Receive, null);
-        }
-
         public void Receive(IAsyncResult Result)
         {
             Packet RecvPacket = new Packet();
             RecvPacket.Read(Buffer);
 
-            Console.WriteLine($"ID:{RecvPacket.Pkt.Id} -> Message:{RecvPacket.Message}"); // Send Message
-            Send(RecvPacket.Message);
+            Console.WriteLine($"ID:{RecvPacket.GetID()} -> Message:{RecvPacket.GetMessage()}"); // Send Message
+            Send(MyId, RecvPacket.GetMessage());
+            //SendOther(RecvPacket.GetMessage());
 
-            if (RecvPacket.Message == "Q" || RecvPacket.Message == "q") // 접속 종료(오류 남)
+            if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 접속 종료(오류 남)
                 Disconnect();
 
-            MySocket.BeginReceive(Buffer, 0, RecvPacket.Pkt.PacketLength, SocketFlags.None, Receive, null);
+            else
+                MySocket.BeginReceive(Buffer, 0, RecvPacket.GetPacketLength(), SocketFlags.None, Receive, null);
         }
         #endregion
 
@@ -62,7 +66,7 @@ namespace Server_Homework
             MySocket.Shutdown(SocketShutdown.Receive);
             MySocket.Close();
 
-            Program.MainServer.RemoveSocket(MyId);
+            Program.MainServer.RemoveSocket(this);
         }
     }
 }

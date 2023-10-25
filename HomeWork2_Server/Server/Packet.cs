@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Dynamic;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -27,9 +28,9 @@ namespace Server_Homework
 
     public class Packet
     {
-        public TcpPacket Pkt = new TcpPacket();
+        private TcpPacket Pkt = new TcpPacket();
 
-        public string Message;
+        private string Message;
 
         private byte[] WriteBuffer;
         private byte[] ReadBuffer;
@@ -53,12 +54,6 @@ namespace Server_Homework
             Pkt.Id = Id;
         }
 
-
-        ~Packet()
-        {
-            // 만약 메모리가 할당 되고 해제가 안된다면 여기서 해제 진행
-        }
-
         public byte[] Write()
         {
             this.WriteBuffer = PacketConverter.ConvertPacketToByte(Pkt);
@@ -77,6 +72,25 @@ namespace Server_Homework
 
             return Pkt;
         }
+
+        #region Access PacketData Func
+        public int GetPacketLength()
+        {
+            return Pkt.PacketLength;
+        }
+        public int GetID()
+        {
+            return Pkt.Id;
+        }
+        public int GetMessageLength()
+        {
+            return Pkt.MessageLength; 
+        }
+        public string GetMessage()
+        {
+            return Message;
+        }
+        #endregion
     }
 
     public class PacketConverter
