@@ -6,13 +6,15 @@ namespace Server_Homework
 {
     public class ClientSocket
     {
+        private Server MainServer = null;
         private int MyId = default(int);
         private Socket MySocket = default(Socket);
 
         private byte[] Buffer = new byte[128];
 
-        public ClientSocket Initialize(int Id, Socket socket)
+        public ClientSocket Initialize(Server Server, int Id, Socket socket)
         {
+            MainServer = Server;
             MyId = Id;
             MySocket = socket;
 
@@ -22,7 +24,7 @@ namespace Server_Homework
 
         public int GetId()
         {
-            return MyId; 
+            return MyId;
         }
 
         #region Send
@@ -32,15 +34,6 @@ namespace Server_Homework
 
             MySocket.Send(SendPakcet.Write());
         }
-
-        public void SendOther(string Msg)
-        {
-            Program.MainServer.MultiCast(MyId, Msg);
-        }
-        public void SendAll(string Msg)
-        {
-            Program.MainServer.Broadcast(MyId, Msg);
-        }
         #endregion
 
         #region Receive
@@ -49,24 +42,17 @@ namespace Server_Homework
             Packet RecvPacket = new Packet();
             RecvPacket.Read(Buffer);
 
-            Console.WriteLine($"ID:{RecvPacket.GetID()} -> Message:{RecvPacket.GetMessage()}"); // Send Message
-            Send(MyId, RecvPacket.GetMessage());
-            //SendOther(RecvPacket.GetMessage());
+            MainServer.AddPacket(RecvPacket); // 받으면 Server에 있는 PacketQueue에 추가
 
-            if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 접속 종료(오류 남)
-                Disconnect();
-
-            else
+            if(RecvPacket.GetMessage() != "Q" && RecvPacket.GetMessage() != "q") // 종료 메세지면 다시 받기 멈춤
                 MySocket.BeginReceive(Buffer, 0, RecvPacket.GetPacketLength(), SocketFlags.None, Receive, null);
         }
         #endregion
 
-        public void Disconnect()
+        public void Close()
         {
             MySocket.Shutdown(SocketShutdown.Receive);
             MySocket.Close();
-
-            Program.MainServer.RemoveSocket(this);
         }
     }
 }

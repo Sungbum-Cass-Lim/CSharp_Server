@@ -12,7 +12,7 @@ namespace Server_Homework
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static unsafe void Main(string[] args)
         {
             Client MainClient = new Client();
 

@@ -36,7 +36,7 @@ namespace Server_Homework
 
         public void Send(string Msg)
         {
-            Packet SendPacket = new Packet(1, 1, MyId, Msg);
+            Packet SendPacket = new Packet(1, 1, MyId, Msg, SendType.BroadCast);
             MySocket.Send(SendPacket.Write());
         }
 

@@ -1,0 +1,82 @@
+
+ ref struct Data
+{
+    public int value;
+}
+
+
+//private Data _data;
+
+static Data Test()
+{
+    var data1 = new Data();
+    data1.value = 2;
+
+    var data2 = data1;
+    data2.value = 3;
+
+    Console.WriteLine(data1.value);
+
+    return data1;
+}
+
+class CAction
+{
+    private Data _data;
+
+    public CAction(Data data) {
+        this._data = data;
+    }
+
+    public void Invoke()
+    {
+        Console.WriteLine(this._data.value);
+    }
+}
+------------------------------------ 람다 내부 동작 방식(Ref 제약조건 이해용)           
+            
+            
+var data = Test();
+
+Action action = () =>
+{
+    Console.WriteLine(data.value);
+};
+
+action();
+
+//ThreadPool.QueueUserWorkItem(action);
+
+
+
+var buf1 = new byte[1024];
+var buf2 = new byte[1024];
+
+Array.Copy(buf1, buf2, buf1.Length);
+Buffer.BlockCopy(buf1, 0, buf2, 0, buf1.Length);
+Buffer.BlockCopy(buf1, 100, buf1, 0, buf1.Length - 100);
+
+int foo;
+
+{
+    var mem = new Memory<byte>(buf1);
+    var dst = new Span<byte>(buf1);
+
+    
+    var a = mem.ToArray();
+    var b = mem.Span;
+
+    var buf = dst.Slice(10, 4);
+    var src = new Span<byte>(&foo, sizeof(int));
+
+    src.CopyTo(buf);
+}
+
+{
+    fixed (byte* dst = &buf1[0])
+    {
+        void* src = &foo;
+        Buffer.MemoryCopy(src, dst, sizeof(int), sizeof(int));
+    };
+}
+------------------------------------ 메모리 복사 방법들(Ref 제약조건 이해용)  

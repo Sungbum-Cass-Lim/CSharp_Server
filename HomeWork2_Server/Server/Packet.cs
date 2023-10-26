@@ -5,21 +5,22 @@ using System.Text;
 
 namespace Server_Homework
 {
-    [Serializable, StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public enum SendType
+    {
+        BroadCast = 1,
+        MultiCast = 2,
+        UniCast   = 3,
+    }
+
+    [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct TcpPacket
     {
-        //Header
-        [MarshalAs(UnmanagedType.I4)] // Sequence Number
         public int SrcNum;
-        [MarshalAs(UnmanagedType.I4)] // Acknowledgment Number
         public int AckNum;
-        [MarshalAs(UnmanagedType.I4)] // Header Length
+        public SendType Type;
         public int PacketLength;
 
-        //Data
-        [MarshalAs(UnmanagedType.I4)] //Client Id
         public int Id;
-        [MarshalAs(UnmanagedType.I4)] // Message Length
         public int MessageLength;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 50)]
@@ -35,10 +36,11 @@ namespace Server_Homework
         private byte[] WriteBuffer;
         private byte[] ReadBuffer;
 
-        public unsafe Packet(int SrcNum = 0, int AckNum = 0, int Id = 0, string Msg = "")
+        public unsafe Packet(int SrcNum = 0, int AckNum = 0, int Id = 0, string Msg = "", SendType SendType = SendType.BroadCast)
         {
             Pkt.SrcNum = SrcNum;
             Pkt.AckNum = AckNum;
+            Pkt.Type = SendType;
 
             Pkt.PacketLength = sizeof(TcpPacket);
             Pkt.MessageLength = Encoding.Unicode.GetByteCount(Msg);
@@ -78,6 +80,10 @@ namespace Server_Homework
         {
             return Pkt.PacketLength;
         }
+        public SendType GetSendType()
+        {
+            return Pkt.Type;
+        }
         public int GetID()
         {
             return Pkt.Id;
@@ -97,20 +103,9 @@ namespace Server_Homework
     {
         public static unsafe byte[] ConvertPacketToByte<T>(T Value) where T : unmanaged
         {
-            //Sturct의 주소값을 Byte* 형식으로 변환
-            byte* Pointer = (byte*)&Value;
+            var ByteArray = new Span<byte>(&Value, sizeof(T));
 
-            //Byte배열에 Struct크기 만큼의 공간 할당
-            byte[] Bytes = new byte[sizeof(T)];
-
-            //Byte배열에 Byte*의 주소값 할당
-            for (int i = 0; i < sizeof(T); i++)
-            {
-                Bytes[i] = Pointer[i];
-            }
-
-            //Byte배열 형태로 반환
-            return Bytes;
+            return ByteArray.ToArray();
         }
 
         public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : unmanaged
