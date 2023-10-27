@@ -9,7 +9,7 @@ namespace Server_Homework
     {
         BroadCast = 1,
         MultiCast = 2,
-        UniCast   = 3,
+        UniCast = 3,
     }
 
     [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -67,7 +67,7 @@ namespace Server_Homework
             this.ReadBuffer = ReadBuffer;
             Pkt = PacketConverter.ConvertByteToPacket<TcpPacket>(this.ReadBuffer);
 
-            fixed(char* CopyString = Pkt.Message)
+            fixed (char* CopyString = Pkt.Message)
             {
                 Message = new string(CopyString);
             }
@@ -90,7 +90,7 @@ namespace Server_Homework
         }
         public int GetMessageLength()
         {
-            return Pkt.MessageLength; 
+            return Pkt.MessageLength;
         }
         public string GetMessage()
         {

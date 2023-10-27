@@ -36,24 +36,7 @@ namespace Server_Homework
             Console.WriteLine("Server State: Listen");
 
             ServerSocket.Listen(5);
-            ServerSocket.BeginAccept(Accept, null);
-        }
-
-        private void Accept(IAsyncResult Result)
-        {
-            lock (this)
-            {
-                ClientSocket ClientSocket = new ClientSocket().Initialize(this, IDCount, ServerSocket.EndAccept(Result));
-
-                ClientSocketDictionary.TryAdd(IDCount, ClientSocket);
-                ClientSocketList.Add(ClientSocket); // TODO: Lock 필요
-
-                ClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
-                Console.WriteLine($"Server State: Accept Client Socket Number {IDCount}");
-
-                IDCount++;
-                ServerSocket.BeginAccept(Accept, null);
-            }
+            Task AcceptLoopTask = AcceptLoop(); // Accept Loop
         }
         #endregion
 
@@ -83,6 +66,31 @@ namespace Server_Homework
         }
         #endregion
 
+        #region ServerAsyncFunc
+        public async Task AcceptLoop()
+        {
+            while (true)
+            {
+                await AcceptAsync();
+                Console.WriteLine($"Server State: Accept Client Socket Number {IDCount - 1}");
+            }
+        }
+
+        private async Task AcceptAsync()
+        {
+            ClientSocket NewClientSocket;
+            NewClientSocket = new ClientSocket().Initialize(this, IDCount, await ServerSocket.AcceptAsync());
+
+            ClientSocketDictionary.TryAdd(IDCount, NewClientSocket);
+            ClientSocketList.Add(NewClientSocket); // TODO: Lock 필요
+
+            NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+            
+            IDCount++;
+        }
+
+        #endregion
+
         public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
         {
             PacketManager.AddPacket(Packet);
@@ -99,7 +107,7 @@ namespace Server_Homework
                 ClientSocket.Close();
 
                 ClientSocketList.Remove(ClientSocket);
-            } 
+            }
         }
     }
 }

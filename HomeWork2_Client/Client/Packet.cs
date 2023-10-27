@@ -12,16 +12,14 @@ namespace Server_Homework
         UniCast = 3,
     }
 
-    [Serializable, StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct TcpPacket
     {
-        //Header
         public int SrcNum;
         public int AckNum;
         public SendType Type;
         public int PacketLength;
 
-        //Data
         public int Id;
         public int MessageLength;
 
@@ -81,6 +79,10 @@ namespace Server_Homework
         public int GetPacketLength()
         {
             return Pkt.PacketLength;
+        }
+        public SendType GetSendType()
+        {
+            return Pkt.Type;
         }
         public int GetID()
         {
