@@ -10,6 +10,8 @@ namespace Server_Homework
     {
         private Socket ServerSocket = null;
         private PacketManager PacketManager = null;
+        private Task? AcceptLoopTask;
+
         private int IDCount = 0;
 
         private readonly object LockObj = new object();
@@ -36,7 +38,7 @@ namespace Server_Homework
             Console.WriteLine("Server State: Listen");
 
             ServerSocket.Listen(5);
-            Task AcceptLoopTask = AcceptLoop(); // Accept Loop
+            AcceptLoopTask = AcceptLoop(); // Accept Loop
         }
         #endregion
 
@@ -88,7 +90,6 @@ namespace Server_Homework
             
             IDCount++;
         }
-
         #endregion
 
         public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
