@@ -52,7 +52,7 @@ namespace Server_Homework
                 Pkt.Message[i] = C;
                 i++;
             }
-
+            
             Pkt.Id = Id;
         }
 
@@ -71,7 +71,7 @@ namespace Server_Homework
             {
                 Message = new string(CopyString);
             }
-
+            
             return Pkt;
         }
 
