@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,109 +14,118 @@ namespace Server_Homework
     }
 
     [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public unsafe struct TcpPacket
+    public struct TcpHeader
     {
-        public int SrcNum;
-        public int AckNum;
-        public SendType Type;
-        public int PacketLength;
+        public int OwnerId;
+        public SendType SendType;
+        public int HeaderLength;
+    }
 
-        public int Id;
-        public int MessageLength;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 50)]
-        public fixed char Message[50]; // Message Data
+    [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct TcpData
+    {
+        public byte[] Message;
+        public int DataLength;
     }
 
     public class Packet
     {
-        private TcpPacket Pkt = new TcpPacket();
-
-        private string Message;
+        private TcpHeader TcpHeader = new TcpHeader();
+        private TcpData TcpData = new TcpData();
 
         private byte[] WriteBuffer;
-        private byte[] ReadBuffer;
 
-        public unsafe Packet(int SrcNum = 0, int AckNum = 0, int Id = 0, string Msg = "", SendType SendType = SendType.BroadCast)
+        public Packet(TcpHeader Header, TcpData Data)
         {
-            Pkt.SrcNum = SrcNum;
-            Pkt.AckNum = AckNum;
-            Pkt.Type = SendType;
-
-            Pkt.PacketLength = sizeof(TcpPacket);
-            Pkt.MessageLength = Encoding.Unicode.GetByteCount(Msg);
-
-            byte[] CopyByteMsg = Encoding.UTF8.GetBytes(Msg);
-            int i = 0;
-            foreach (char C in Encoding.UTF8.GetChars(CopyByteMsg)) //TODO: Fixed 배열에 할당 방법을 몰라서 임시
+            TcpHeader = Header;
+            TcpData = Data;
+        }
+        public unsafe Packet(int Id = 0, string Message = "", SendType SendType = SendType.BroadCast)
+        {
+            try
             {
-                Pkt.Message[i] = C;
-                i++;
-            }
+                TcpHeader.OwnerId = Id;
+                TcpHeader.SendType = SendType;
+                TcpHeader.HeaderLength = sizeof(TcpHeader);
 
-            Pkt.Id = Id;
+                TcpData.Message = Encoding.UTF8.GetBytes(Message);
+                TcpData.DataLength = sizeof(TcpData);
+            }
+            catch (Exception E)
+            {
+                Console.WriteLine(E);
+            }
         }
 
         public byte[] Write()
         {
-            this.WriteBuffer = PacketConverter.ConvertPacketToByte(Pkt);
+            this.WriteBuffer = PacketConverter.ConvertPacketToByte(TcpHeader, TcpData);
             return WriteBuffer;
         }
 
-        public unsafe TcpPacket Read(byte[] ReadBuffer)
+        public Packet Read(byte[] ReadBuffer)
         {
-            this.ReadBuffer = ReadBuffer;
-            Pkt = PacketConverter.ConvertByteToPacket<TcpPacket>(this.ReadBuffer);
-
-            fixed (char* CopyString = Pkt.Message)
-            {
-                Message = new string(CopyString);
-            }
-
-            return Pkt;
+            return PacketConverter.ConvertByteToPacket(ReadBuffer);
         }
 
         #region Access PacketData Func
-        public int GetPacketLength()
+        public int GetHeaderLength()
         {
-            return Pkt.PacketLength;
+            return TcpHeader.HeaderLength;
         }
         public SendType GetSendType()
         {
-            return Pkt.Type;
+            return TcpHeader.SendType;
         }
         public int GetID()
         {
-            return Pkt.Id;
+            return TcpHeader.OwnerId;
         }
-        public int GetMessageLength()
+        public int GetDataLength()
         {
-            return Pkt.MessageLength;
+            return TcpData.DataLength;
         }
         public string GetMessage()
         {
-            return Message;
+            return Encoding.UTF8.GetString(TcpData.Message);
         }
         #endregion
     }
 
-    public class PacketConverter
+    public unsafe class PacketConverter
     {
-        public static unsafe byte[] ConvertPacketToByte<T>(T Value) where T : unmanaged
+        public static byte[] ConvertPacketToByte(TcpHeader Header, TcpData Data)
         {
-            var ByteArray = new Span<byte>(&Value, sizeof(T));
+            var HeaderByteArray = new Span<byte>(&Header, Header.HeaderLength);
+            var DataByteArray = new Span<byte>(&Data, Data.DataLength);
 
-            return ByteArray.ToArray();
+            byte[] ReturnBuffer = new byte[HeaderByteArray.Length + Data.DataLength];
+
+            Buffer.BlockCopy(HeaderByteArray.ToArray(), 0, ReturnBuffer, 0, Header.HeaderLength);
+            Buffer.BlockCopy(DataByteArray.ToArray(), 0, ReturnBuffer, Header.HeaderLength, Data.DataLength);
+
+            return ReturnBuffer;
         }
 
-        public static unsafe T ConvertByteToPacket<T>(byte[] PacketBuffer) where T : unmanaged
+        public static Packet ConvertByteToPacket(byte[] PacketBuffer)
         {
-            //고정된 Byte*를 만들어 Byte배열 형태로 받아온 주소값을 할당
-            fixed (byte* Pointer = PacketBuffer)
+            TcpHeader ReturnHeader = new TcpHeader();
+            TcpData ReturnData = new TcpData();
+
+            var HeaderBuffer = new Span<byte>(PacketBuffer).Slice(0, sizeof(TcpHeader)).ToArray();
+            var DataBuffer = new Span<byte>(PacketBuffer).Slice(sizeof(TcpHeader), sizeof(TcpData)).ToArray();
+
+            fixed (byte* HeaderByte = HeaderBuffer.ToArray())
             {
-                //주소값을 Struct 주소값 형태로 바꾸고 한번 더 *를 사용하여 T형태로 바꾼뒤 반환
-                return *(T*)Pointer;
+                ReturnHeader = *(TcpHeader*)HeaderByte;
             }
+            fixed (byte* DataByte = DataBuffer.ToArray())
+            {
+                ReturnData = *(TcpData*)DataByte;
+            }
+
+            Packet ReturnPacket = new Packet(ReturnHeader, ReturnData);
+            return ReturnPacket;
         }
     }
 }

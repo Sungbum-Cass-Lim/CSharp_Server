@@ -8,8 +8,8 @@ namespace Server_Homework
     public class Client
     {
         private int MyId = default(int);
-        private Socket? MySocket = default(Socket);
-        private Task? ReceiveLoopTask;
+        private Socket MySocket = default(Socket);
+        private Task ReceiveLoopTask;
 
         private byte[] Buffer = new byte[128];
         private bool IsConnect = false;
@@ -24,7 +24,7 @@ namespace Server_Homework
         private async void Connect()
         {
             Console.WriteLine("State: Try Connect...");
-            await MySocket!.ConnectAsync(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000)); // 서버 연결 시도
+            await MySocket.ConnectAsync(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000)); // 서버 연결 시도
 
             Console.WriteLine("State: Success Connect!"); // 서버 연결 성공
             ReceiveLoopTask = ReceiveLoop();
@@ -32,8 +32,8 @@ namespace Server_Homework
 
         public void Send(string Msg)
         {
-            Packet SendPacket = new Packet(1, 1, MyId, Msg, SendType.BroadCast);
-            MySocket!.Send(SendPacket.Write());
+            Packet SendPacket = new Packet(MyId, Msg, SendType.BroadCast);
+            MySocket.Send(SendPacket.Write());
         }
 
         #region ServerAsyncFunc
@@ -41,16 +41,23 @@ namespace Server_Homework
         {
             while (true)
             {
-                await ReceiveAsync();
+                try
+                {
+                    await ReceiveAsync();
+                }
+                catch(Exception E)
+                {
+                    Console.WriteLine(E);
+                }
             }
         }
 
         private async Task ReceiveAsync()
         {
             Packet RecvPacket = new Packet();
-            await MySocket!.ReceiveAsync(Buffer, SocketFlags.None);
+            await MySocket.ReceiveAsync(Buffer, SocketFlags.None);
 
-            RecvPacket.Read(Buffer);
+            RecvPacket = RecvPacket.Read(Buffer);
 
             if (IsConnect == false)
             {
@@ -62,7 +69,7 @@ namespace Server_Homework
             if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 종료 메세지면 다시 받기 멈춤
             {
                 Disconnect();
-                ReceiveLoopTask!.Wait();
+                ReceiveLoopTask.Wait();
             }    
         }
         #endregion
@@ -71,7 +78,7 @@ namespace Server_Homework
         {
             Console.WriteLine($"Disconnect Server");
 
-            MySocket!.Shutdown(SocketShutdown.Receive);
+            MySocket.Shutdown(SocketShutdown.Receive);
             MySocket.Close();
         }
     }

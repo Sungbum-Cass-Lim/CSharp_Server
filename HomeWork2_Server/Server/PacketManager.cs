@@ -21,7 +21,7 @@ namespace Server_Homework
 
         public void PacketProcess()
         {
-            Packet? TargetPacket = null;
+            Packet TargetPacket = null;
 
             if (PacketQueue.TryDequeue(out TargetPacket))
             {

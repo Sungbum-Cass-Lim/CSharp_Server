@@ -10,7 +10,7 @@ namespace Server_Homework
     {
         private Socket ServerSocket = null;
         private PacketManager PacketManager = null;
-        private Task? AcceptLoopTask;
+        private Task AcceptLoopTask;
 
         private int IDCount = 0;
 
@@ -83,12 +83,13 @@ namespace Server_Homework
             ClientSocket NewClientSocket;
             NewClientSocket = new ClientSocket().Initialize(this, IDCount, await ServerSocket.AcceptAsync());
 
-            ClientSocketDictionary.TryAdd(IDCount, NewClientSocket);
-            ClientSocketList.Add(NewClientSocket); // TODO: Lock 필요
+            if (ClientSocketDictionary.TryAdd(IDCount, NewClientSocket))
+            {
+                ClientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
+                NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
 
-            NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
-            
-            IDCount++;
+                IDCount++;
+            }
         }
         #endregion
 
@@ -102,7 +103,7 @@ namespace Server_Homework
             Console.WriteLine($"Disconnect Clinet ID: {SocketID}");
 
             // Lock을 안써도 상호 배제와 삭제 가능
-            if (ClientSocketDictionary.TryRemove(SocketID, out ClientSocket? ClientSocket)) // 이 부분을 아예 건너뜀 왜?
+            if (ClientSocketDictionary.TryRemove(SocketID, out ClientSocket ClientSocket)) // 이 부분을 아예 건너뜀 왜?
             {
                 ClientSocket.Send(SocketID, "Q");
                 ClientSocket.Close();
