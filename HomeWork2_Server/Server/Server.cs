@@ -12,7 +12,7 @@ namespace Server_Homework
         private PacketManager PacketManager = null;
         private Task AcceptLoopTask;
 
-        private int IDCount = 0;
+        private int IDCount = 1;
 
         private readonly object LockObj = new object();
 

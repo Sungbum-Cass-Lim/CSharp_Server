@@ -46,6 +46,7 @@ namespace Server_Homework
                         return;
 
                     default:
+                        Console.WriteLine(TargetPacket.GetSendType());
                         return;
                 }
             }

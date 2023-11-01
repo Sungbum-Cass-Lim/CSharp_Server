@@ -7,11 +7,13 @@ namespace Server_Homework
 {
     public class Client
     {
-        private int MyId = default(int);
-        private Socket MySocket = default(Socket);
+        private const int BUFFER_SIZE = 1024;
+
+        private int MyId;
+        private Socket MySocket;
         private Task ReceiveLoopTask;
 
-        private byte[] Buffer = new byte[128];
+        private byte[] Buffer = new byte[BUFFER_SIZE];
         private bool IsConnect = false;
 
         public void CreateSocket()
@@ -43,21 +45,31 @@ namespace Server_Homework
             {
                 try
                 {
-                    await ReceiveAsync();
+                    await MySocket.ReceiveAsync(Buffer, SocketFlags.None);
+                    await ReceiveAsync(0);
                 }
                 catch(Exception E)
                 {
                     Console.WriteLine(E);
                 }
+                finally
+                {
+                    Buffer = new byte[BUFFER_SIZE];
+                }
             }
         }
 
-        private async Task ReceiveAsync()
+        private async Task ReceiveAsync(int ReadOffset)
         {
-            Packet RecvPacket = new Packet();
-            await MySocket.ReceiveAsync(Buffer, SocketFlags.None);
+            int StartReadOffset = ReadOffset;
+            int NextReadOffset = 0;
 
-            RecvPacket = RecvPacket.Read(Buffer);
+            Header PacketHeader = PacketConverter.ConvertByteToPacketHeader(Buffer, StartReadOffset);
+            byte[] SliceBuffer = new Span<byte>(Buffer).
+                Slice(ReadOffset, PacketHeader.HeaderLength + PacketHeader.MessageLength).ToArray();
+
+            Packet RecvPacket = new Packet();
+            RecvPacket = RecvPacket.Read(SliceBuffer);
 
             if (IsConnect == false)
             {
@@ -66,11 +78,19 @@ namespace Server_Homework
             }
             Console.WriteLine($"ID:{RecvPacket.GetID()} -> Message:{RecvPacket.GetMessage()}");
 
-            if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 종료 메세지면 다시 받기 멈춤
+            // 종료 메세지면 다시 받기 멈춤
+            if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") 
             {
                 Disconnect();
                 ReceiveLoopTask.Wait();
             }    
+
+            NextReadOffset = SliceBuffer.Length;
+
+            if (Buffer[NextReadOffset] != 0)
+            { 
+                await ReceiveAsync(NextReadOffset);
+            }
         }
         #endregion
 

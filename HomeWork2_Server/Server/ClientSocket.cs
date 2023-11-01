@@ -32,9 +32,17 @@ namespace Server_Homework
         #region Send
         public void Send(int Id, string Msg)
         {
-            Packet SendPakcet = new Packet(Id, Msg);
+            //Packet SendPakcet = new Packet(Id, $"{Msg}");
 
-            MySocket.Send(SendPakcet.Write());
+            //Console.WriteLine("Send");
+            //MySocket.Send(SendPakcet.Write());
+
+            for (int i = 0; i < 1; i++)
+            {
+                Packet SendPakcet = new Packet(Id, $"{Msg}: {i}");
+                byte[] Buffer = SendPakcet.Write();
+                MySocket.Send(Buffer);
+            }
         }
         #endregion
 
@@ -43,8 +51,16 @@ namespace Server_Homework
         {
             while (true)
             {
+                try
+                {
                 await ReceiveAsync();
                 Console.WriteLine($"New ReceiveMessage");
+                }
+
+                catch (Exception E)
+                {
+                    Console.WriteLine(E.ToString());
+                }
             }
         }
 
@@ -72,10 +88,7 @@ namespace Server_Homework
              * 
              * 추가: 소켓이 끊어졌을 때의 처리가 안되어 있음.
              */
-
-            byte[] buffer = new byte[1024];
-
-            await MySocket.ReceiveAsync(buffer, SocketFlags.None);
+            await MySocket.ReceiveAsync(Buffer, SocketFlags.None);
 
             RecvPacket = RecvPacket.Read(Buffer);
             MainServer.AddPacket(RecvPacket); // 받으면 Server에 있는 PacketQueue에 추가
