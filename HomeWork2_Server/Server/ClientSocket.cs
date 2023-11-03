@@ -6,13 +6,15 @@ namespace Server_Homework
 {
     public class ClientSocket
     {
+        private const int BUFFER_SIZE = 35;
         private Server MainServer = null;
 
         private int MyId = default(int);
         private Socket MySocket = default(Socket);
         private Task ReceiveLoopTask;
 
-        private byte[] Buffer = new byte[128];
+        private byte[] DefultBuffer = new byte[BUFFER_SIZE];
+        private byte[] SaveBuffer = new byte[BUFFER_SIZE];
 
         public ClientSocket Initialize(Server Server, int Id, Socket socket)
         {
@@ -37,7 +39,7 @@ namespace Server_Homework
             //Console.WriteLine("Send");
             //MySocket.Send(SendPakcet.Write());
 
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < 2; i++)
             {
                 Packet SendPakcet = new Packet(Id, $"{Msg}: {i}");
                 byte[] Buffer = SendPakcet.Write();
@@ -53,20 +55,22 @@ namespace Server_Homework
             {
                 try
                 {
-                await ReceiveAsync();
-                Console.WriteLine($"New ReceiveMessage");
+                    await MySocket.ReceiveAsync(DefultBuffer, SocketFlags.None);
+                    await ReadBuffer(0);
                 }
-
                 catch (Exception E)
                 {
-                    Console.WriteLine(E.ToString());
+                    Console.WriteLine(E);
+                }
+                finally
+                {
+                    DefultBuffer = new byte[BUFFER_SIZE];
                 }
             }
         }
 
-        private async Task ReceiveAsync()
+        private async Task ReadBuffer(int ReadOffset)
         {
-            Packet RecvPacket = new Packet();
             //var memory = new Memory<byte>(new byte[1024]);
 
             //var received = 0;
@@ -83,18 +87,34 @@ namespace Server_Homework
             //}
             /*
              * 1. 수신된 bytes 가 header 보다는 같거나, 길어야 함.
-             * 2.  header 를 제외한 수신된 데이터가 header 의 length 보다는 길어야 함.
-             * 3. 적게 수신된 경우, 이어 받을 수 있도록 구현해야 함.
+             * 2. header 를 제외한 수신된 데이터가 header 의 length 보다는 길어야 함.
+             * 3. 적게 수신된 경우, 이어 받을 수 있도록 구현해야 함.(구현)
              * 
              * 추가: 소켓이 끊어졌을 때의 처리가 안되어 있음.
              */
-            await MySocket.ReceiveAsync(Buffer, SocketFlags.None);
 
-            RecvPacket = RecvPacket.Read(Buffer);
+            int StartReadOffset = ReadOffset;
+            int NextReadOffset = 0;
+
+            Header PacketHeader = PacketConverter.ConvertByteToPacketHeader(DefultBuffer, StartReadOffset);
+            byte[] SliceBuffer = new Span<byte>(DefultBuffer).
+                Slice(ReadOffset, PacketHeader.HeaderLength + PacketHeader.MessageLength).ToArray();
+
+            Packet RecvPacket = new Packet();
+            RecvPacket = RecvPacket.Read(SliceBuffer);
+
             MainServer.AddPacket(RecvPacket); // 받으면 Server에 있는 PacketQueue에 추가
 
             if (RecvPacket.GetMessage() == "Q" || RecvPacket.GetMessage() == "q") // 종료 메세지면 다시 받기 멈춤
                 ReceiveLoopTask.Wait();
+
+            NextReadOffset = ReadOffset + SliceBuffer.Length;
+
+            Console.WriteLine($"New ReceiveMessage");
+            if (DefultBuffer[NextReadOffset] != 0)
+            {
+                await ReadBuffer(NextReadOffset);
+            }
         }
         #endregion
 

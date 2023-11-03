@@ -96,7 +96,7 @@ namespace Server_Homework
 
     public unsafe class PacketConverter
     {
-        public static byte[] ConvertPacketToByte(Header Header, Data Data)
+        public static byte[] ConvertPacketToByte(Header Header, Data Data) // Packet -> Byte
         {
             var HeaderByteArray = new Span<byte>(&Header, Header.HeaderLength).ToArray();
             var DataByteArray = Data.Message;
@@ -107,28 +107,39 @@ namespace Server_Homework
 
             Buffer.BlockCopy(HeaderByteArray, 0, ReturnBuffer, 0, Header.HeaderLength);
             Buffer.BlockCopy(DataByteArray, 0, ReturnBuffer, Header.HeaderLength, Header.MessageLength);
-            
+
             return ReturnBuffer;
         }
 
-        public static Packet ConvertByteToPacket(byte[] PacketBuffer)
+        public static Packet ConvertByteToPacket(byte[] PacketBuffer) // Byte -> Packet
         {
-            var SpanBuffer = new Span<byte> (PacketBuffer);
+            var SpanPacketBuffer = new Span<byte>(PacketBuffer);
 
             Header ReturnHeader = new Header();
             Data ReturnData = new Data();
 
-            byte[] HeaderBuffer = SpanBuffer.Slice(0, sizeof(Header)).ToArray(); 
+            byte[] HeaderBuffer = SpanPacketBuffer.Slice(0, sizeof(Header)).ToArray();
 
-            fixed(byte* HeaderByte = HeaderBuffer)
+            fixed (byte* HeaderByte = HeaderBuffer)
             {
                 ReturnHeader = *(Header*)HeaderByte;
             }
 
-            ReturnData.Message = SpanBuffer.Slice(sizeof(Header), ReturnHeader.MessageLength).ToArray();
+            ReturnData.Message = SpanPacketBuffer.Slice(sizeof(Header), ReturnHeader.MessageLength).ToArray();
 
             Packet ReturnPacket = new Packet(ReturnHeader, ReturnData);
             return ReturnPacket;
+        }
+
+        public static Header ConvertByteToPacketHeader(byte[] Buffer, int Start) // Byte -> Packet
+        {
+            var SpanHeaderBuffer = new Span<byte>(Buffer);
+            byte[] HeaderBuffer = SpanHeaderBuffer.Slice(Start, sizeof(Header)).ToArray();
+
+            fixed (byte* HeaderByte = HeaderBuffer)
+            {
+                return *(Header*)HeaderByte;
+            }
         }
     }
 }
