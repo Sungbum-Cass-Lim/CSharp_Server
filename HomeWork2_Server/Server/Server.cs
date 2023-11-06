@@ -9,7 +9,7 @@ namespace Server_Homework
     public class Server
     {
         private Socket ServerSocket = null;
-        private PacketManager PacketManager = null;
+        private PacketProcessor PacketProcessor = null;
         private Task AcceptLoopTask;
 
         private int IDCount = 1;
@@ -24,7 +24,7 @@ namespace Server_Homework
         {
             Console.WriteLine("Server State: Start");
 
-            PacketManager = new PacketManager(this);
+            PacketProcessor = new PacketProcessor(this);
 
             ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             ServerSocket.Bind(new IPEndPoint(IPAddress.Any, 7000));
@@ -42,32 +42,6 @@ namespace Server_Homework
         }
         #endregion
 
-        #region Server Send
-        public void Unicast(int Id, string Msg) // 지정 전송
-        {
-            ClientSocketDictionary[Id].Send(Id, Msg);
-        }
-
-        public void Broadcast(int Id, string Msg) // 모두 전송
-        {
-            foreach (ClientSocket ClientSocket in ClientSocketList)
-            {
-                ClientSocket.Send(Id, Msg);
-            }
-        }
-
-        public void Multicast(int Id, string Msg) // 해당 Id 빼고 모두 전송
-        {
-            foreach (ClientSocket ClientSocket in ClientSocketList)
-            {
-                if (ClientSocket.GetId() != Id)
-                {
-                    ClientSocket.Send(Id, Msg);
-                }
-            }
-        }
-        #endregion
-
         #region ServerAsyncFunc
         public async Task AcceptLoop()
         {
@@ -80,22 +54,29 @@ namespace Server_Homework
 
         private async Task AcceptAsync()
         {
-            ClientSocket NewClientSocket;
-            NewClientSocket = new ClientSocket().Initialize(this, IDCount, await ServerSocket.AcceptAsync());
-
-            if (ClientSocketDictionary.TryAdd(IDCount, NewClientSocket))
+            try
             {
-                ClientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
-                NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+                ClientSocket NewClientSocket;
+                NewClientSocket = new ClientSocket().Initialize(this, IDCount, await ServerSocket.AcceptAsync());
 
-                IDCount++;
+                if (ClientSocketDictionary.TryAdd(IDCount, NewClientSocket))
+                {
+                    ClientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
+                    NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+
+                    IDCount++;
+                }
+            }
+            catch(Exception E)
+            { 
+                Console.WriteLine(E); 
             }
         }
         #endregion
 
         public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
         {
-            PacketManager.AddPacket(Packet);
+            PacketProcessor.AddPacket(Packet);
         }
 
         public void DisconnectScoket(int SocketID)

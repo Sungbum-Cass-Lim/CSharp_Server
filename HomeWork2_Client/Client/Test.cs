@@ -100,5 +100,27 @@ namespace Client
             // struct Data2
 
         }
+
+        //var memory = new Memory<byte>(new byte[1024]);
+
+        //var received = 0;
+
+        //while (true)
+        //{
+        //var buffer = memory.Slice(received, 5);
+        //var bytes = await MySocket.ReceiveAsync(buffer, SocketFlags.None);
+        //    if (received + bytes < Header.Length)
+        //    {
+        //        received += bytes;
+        //        continue;
+        //    }    
+        //}
+        /*
+         * 1. 수신된 bytes 가 header 보다는 같거나, 길어야 함.
+         * 2. header 를 제외한 수신된 데이터가 header 의 length 보다는 길어야 함.
+         * 3. 적게 수신된 경우, 이어 받을 수 있도록 구현해야 함.
+         * 
+         * 추가: 소켓이 끊어졌을 때의 처리가 안되어 있음.
+         */
     }
 }

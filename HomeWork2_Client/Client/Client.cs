@@ -12,7 +12,7 @@ namespace Server_Homework
 
         private int MyId;
         private Socket MySocket;
-        private Task ReceiveTask;
+        private Task ReceiveLoopTask;
 
         private bool IsConnect = false;
 
@@ -30,7 +30,7 @@ namespace Server_Homework
             await MySocket.ConnectAsync(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000)); // 서버 연결 시도
 
             Console.WriteLine("State: Success Connect!"); // 서버 연결 성공
-            ReceiveTask = Receive();
+            ReceiveLoopTask = ReceiveLoop();
             return;
         }
 
@@ -54,22 +54,24 @@ namespace Server_Homework
             }
         }
 
-        public async Task Receive()
+        public async Task ReceiveLoop()
         {
             Packet ReceivePacket = new Packet();
             Memory<byte> ReadBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
 
             int HeaderSize = Unsafe.SizeOf<Header>();
+            int ReadOffset = 0;
             int TotalRecvByte = 0;
             int MaxReadByte = 32; 
 
             while (true)
             {
-                TotalRecvByte = await MySocket.ReceiveAsync(new Memory<byte>().Slice(TotalRecvByte, MaxReadByte), 
+                //Receive받은 데이터의 크기 가중
+                TotalRecvByte += await MySocket.ReceiveAsync(new Memory<byte>().Slice(TotalRecvByte, MaxReadByte), 
                     SocketFlags.None);
 
                 //버퍼의 한계까지 데이터를 받았지만 HeaderSize보다 작을 때
-                if (TotalRecvByte == BUFFER_SIZE && TotalRecvByte < HeaderSize)
+                if (TotalRecvByte == ReadBuffer.Length && TotalRecvByte < HeaderSize)
                 {
                     var NewBuffer = new Memory<byte>(new byte[ReadBuffer.Length * 2]);
                     ReadBuffer.CopyTo(NewBuffer);
@@ -78,11 +80,58 @@ namespace Server_Homework
                     continue;
                 }
                 
-                //그냥 받은 데이터가 헤더 사이즈보다 작을 때
+                //그냥 받은 데이터가 Header 사이즈보다 작을 때
                 else if (TotalRecvByte < HeaderSize)
                     continue;
+
+                //Header버퍼를 다 받아왔다면 해당 버퍼를 Header로 변환
+                var HeaderBuffer = ReadBuffer.Slice(ReadOffset, HeaderSize);
+                Header TcpHeader = ReceivePacket.ReadHeader(HeaderBuffer);
+                ReadOffset += HeaderSize;
+
+                //버퍼의 한계까지 데이터를 받았지만 MessageSize보다 작을 때
+                if (TotalRecvByte == ReadBuffer.Length && TotalRecvByte - HeaderSize < TcpHeader.MessageLength)
+                {
+                    var NewBuffer = new Memory<byte>(new byte[ReadBuffer.Length * 2]);
+                    ReadBuffer.CopyTo(NewBuffer);
+                    ReadBuffer = NewBuffer;
+
+                    continue;
+                }
+
+                //그냥 받은 데이터가 Message 사이즈보다 작을 때
+                else if (TotalRecvByte - HeaderSize < TcpHeader.MessageLength)
+                    continue;
+
+                //Data버퍼를 다 받아왔다면 해당 버퍼를 Data로 변환
+                var DataBuffer = ReadBuffer.Slice(ReadOffset, TcpHeader.MessageLength);
+                Data TcpData = ReceivePacket.ReadData(DataBuffer, TcpHeader);
+                ReadOffset += TcpHeader.MessageLength;
+
+                //메세지가 출력되면 일단은 성공
+                Console.WriteLine(TcpData.Message);
+
+                //남은 데이터 Save버퍼에 보관하여 ReadBuffer로 복사
+                var SaveBuffer = ReadBuffer.Slice(ReadOffset, ReadBuffer.Length);
+                ReadBuffer = new Memory<byte>(new byte[SaveBuffer.Length]);
+                SaveBuffer.CopyTo(ReadBuffer);
+
+                //받은 데이터 Read버퍼 크기로 초기화, 읽은 위치 초기화
+                TotalRecvByte = ReadBuffer.Length;
+                ReadOffset = 0;
             }
         }
+        /* TODO: 내일 코드 분할 할 때 사용
+        public async Task<Header> ReceiveHeader()
+        {
+
+        }
+
+        public async Task<Data> ReceiveData()
+        {
+
+        }
+        */
 
         public void TryDisconnet(string Message)
         {
@@ -90,7 +139,7 @@ namespace Server_Homework
             if (Message == "Q" || Message == "q")
             {
                 Disconnect();
-                ReceiveTask.Wait();
+                ReceiveLoopTask.Wait();
             }
         }
 

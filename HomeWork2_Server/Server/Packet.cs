@@ -1,5 +1,4 @@
-﻿using Client;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
 using System.Net.NetworkInformation;
@@ -24,12 +23,14 @@ namespace Server_Homework
         public int OwnerId;
         public SendType SendType;
 
-        public void Initialize(int MsgLength, int Id, SendType Type)
+        public Header Initialize(int MsgLength, int Id, SendType Type)
         {
             HeaderLength = Unsafe.SizeOf<Header>();
             MessageLength = MsgLength;
             OwnerId = Id;
             SendType = Type;
+
+            return this;
         }
 
         public unsafe Memory<byte> Serialize()
@@ -59,9 +60,11 @@ namespace Server_Homework
     {
         public string Message;
 
-        public void Initialize(string Msg)
+        public Data Initialize(string Msg)
         {
             Message = Msg;
+
+            return this;
         }
 
         public Memory<byte> Serialize()
@@ -93,19 +96,17 @@ namespace Server_Homework
             return PacketBuffer;
         }
 
-        public Header ReadHeader(Memory<byte> Buffer) // Byte -> Packet
+        public Header ReadHeader(Memory<byte> HeaderBuffer) // Byte -> Packet
         {
-            var HeaderBuffer = Buffer.Slice(0, Unsafe.SizeOf<Header>());
-
             Header Header = new Header().Deserialize(HeaderBuffer);
+
             return Header;
         }
 
-        public Data ReadData(Memory<byte> Buffer, Header Header) // Byte -> Packet
+        public Data ReadData(Memory<byte> DataBuffer, Header Header) // Byte -> Packet
         {
-            var DataBuffer = Buffer.Slice(Header.HeaderLength, Header.MessageLength);
-
             Data Data = new Data().Deserialize(DataBuffer, Header.MessageLength);
+
             return Data;
         }
     }
