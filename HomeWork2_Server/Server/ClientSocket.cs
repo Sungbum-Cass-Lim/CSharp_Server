@@ -11,8 +11,7 @@ namespace Server_Homework
 
         private int MyId;
         private Socket MySocket;
-        private TcpConverter Converter = new TcpConverter();
-        private Task ReceiveLoopTask;
+        private Task ReceiveTask;
 
         private byte[] DefultBuffer = new byte[BUFFER_SIZE];
         private byte[] SaveBuffer = new byte[BUFFER_SIZE];
@@ -23,7 +22,7 @@ namespace Server_Homework
             MyId = Id;
             MySocket = socket;
 
-            ReceiveLoopTask = ReceiveLoop();
+            ReceiveTask = ReceiveLoop();
             return this;
         }
 
@@ -35,39 +34,14 @@ namespace Server_Homework
         #region Send
         public void Send(int Id, string Msg)
         {
-            //Packet SendPakcet = new Packet(Id, $"{Msg}");
 
-            //Console.WriteLine("Send");
-            //MySocket.Send(SendPakcet.Write());
-
-            for (int i = 0; i < 2; i++)
-            {
-                Packet SendPakcet = new Packet(Id, $"{Msg}: {i}");
-                Span<byte> Buffer = SendPakcet.Write();
-                MySocket.Send(Buffer);
-            }
         }
         #endregion
 
         #region ServerAsyncFunc
         public async Task ReceiveLoop()
         {
-            while (true)
-            {
-                try
-                {
-                    await MySocket.ReceiveAsync(DefultBuffer, SocketFlags.None);
-                    await ReadBuffer(0);
-                }
-                catch (Exception E)
-                {
-                    Console.WriteLine(E);
-                }
-                finally
-                {
-                    DefultBuffer = new byte[BUFFER_SIZE];
-                }
-            }
+
         }
 
         private async Task ReadBuffer(int ReadOffset)

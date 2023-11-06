@@ -36,13 +36,16 @@ namespace Server_Homework
 
         public async Task Send(string Msg)
         {
+            Packet SendPacket = new Packet();
+            Header TcpHeader = new Header().Initialize(Msg.Length, MyId, SendType.BroadCast);
+            Data TcpData = new Data().Initialize(Msg);
+
             if (!IsConnect)
                 return;
 
             try
             {
-                Packet SendPacket = new Packet(MyId, Msg, SendType.BroadCast);
-                await MySocket.SendAsync(SendPacket.WritePacket(), SocketFlags.None);
+                await MySocket.SendAsync(SendPacket.WritePacket(TcpHeader, TcpData), SocketFlags.None);
             }
             catch(Exception E) 
             {
@@ -53,12 +56,31 @@ namespace Server_Homework
 
         public async Task Receive()
         {
+            Packet ReceivePacket = new Packet();
             Memory<byte> ReadBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
-            int TotalReceive = 0;
+
+            int HeaderSize = Unsafe.SizeOf<Header>();
+            int TotalRecvByte = 0;
+            int MaxReadByte = 32; 
 
             while (true)
             {
-                await MySocket.ReceiveAsync(new Memory<byte>(), SocketFlags.None);
+                TotalRecvByte = await MySocket.ReceiveAsync(new Memory<byte>().Slice(TotalRecvByte, MaxReadByte), 
+                    SocketFlags.None);
+
+                //버퍼의 한계까지 데이터를 받았지만 HeaderSize보다 작을 때
+                if (TotalRecvByte == BUFFER_SIZE && TotalRecvByte < HeaderSize)
+                {
+                    var NewBuffer = new Memory<byte>(new byte[ReadBuffer.Length * 2]);
+                    ReadBuffer.CopyTo(NewBuffer);
+                    ReadBuffer = NewBuffer;
+
+                    continue;
+                }
+                
+                //그냥 받은 데이터가 헤더 사이즈보다 작을 때
+                else if (TotalRecvByte < HeaderSize)
+                    continue;
             }
         }
 
