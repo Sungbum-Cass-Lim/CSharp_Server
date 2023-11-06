@@ -4,20 +4,14 @@ namespace Server_Homework
 {
     internal class Program
     {
-        static unsafe void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Client MainClient = new Client();
-
-            string Message = null;
-            MainClient.CreateSocket();
+            await MainClient.CreateSocket();
 
             while (true)
             {
-                if ((Message = Console.ReadLine()) != null)
-                {
-                    MainClient.Send(Message);
-                    Message = null;
-                }
+                await MainClient.Send(Console.ReadLine());
             }
         }
     }

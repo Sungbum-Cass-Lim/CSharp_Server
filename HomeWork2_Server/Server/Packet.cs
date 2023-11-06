@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Client;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
+using System.Net.NetworkInformation;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Xml.Linq;
 
 namespace Server_Homework
 {
@@ -14,132 +16,97 @@ namespace Server_Homework
         UniCast = 3,
     }
 
-    [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Header // 1
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct Header
     {
+        public int HeaderLength;
+        public int MessageLength;
         public int OwnerId;
         public SendType SendType;
-        public int MessageLength;
-        public int HeaderLength;
+
+        public void Initialize(int MsgLength, int Id, SendType Type)
+        {
+            HeaderLength = Unsafe.SizeOf<Header>();
+            MessageLength = MsgLength;
+            OwnerId = Id;
+            SendType = Type;
+        }
+
+        public unsafe Memory<byte> Serialize()
+        {
+            Header TargetHeader = this;
+            byte[] HeaderByte = new byte[HeaderLength];
+
+            fixed (byte* HeaderBytes = HeaderByte)
+            {
+                Buffer.MemoryCopy(&TargetHeader, HeaderBytes, 0, HeaderLength);
+            }
+
+            return new Memory<byte>(HeaderByte);
+        }
+
+        public unsafe Header Deserialize(Memory<byte> ReadBuffer)
+        {
+            fixed (byte* HeaderPtr = ReadBuffer.Span)
+            {
+                return *(Header*)HeaderPtr;
+            }
+        }
     }
 
-    [Serializable, StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Data // 3
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct Data
     {
-        public byte[] Message;
+        public string Message;
+
+        public void Initialize(string Msg)
+        {
+            Message = Msg;
+        }
+
+        public Memory<byte> Serialize()
+        {
+            Data TartgetData = this;
+            var MessageEncodingValue = Encoding.UTF8.GetBytes(TartgetData.Message);
+
+            return new Memory<byte>(MessageEncodingValue);
+        }
+
+        public Data Deserialize(Memory<byte> ReadBuffer, int MsgLength)
+        {
+            Data Data = this;
+            Data.Message = Encoding.UTF8.GetString(ReadBuffer.Span);
+
+            return Data;
+        }
     }
 
     public class Packet
     {
-        private Header TcpHeader = new Header();
-        private Data TcpData = new Data();
-
-        private byte[] WriteBuffer;
-
-        public Packet(Header Header, Data Data)
+        public Memory<byte> WritePacket(Header Header, Data Data) // Packet -> Byte
         {
-            TcpHeader = Header;
-            TcpData = Data;
-        }
-        public unsafe Packet(int Id = 0, string Message = "", SendType SendType = SendType.BroadCast)
-        {
-            try
-            {
-                TcpHeader.OwnerId = Id;
-                TcpHeader.HeaderLength = sizeof(Header);
-                TcpHeader.SendType = SendType;
+            var PacketBuffer = new Memory<byte>(new byte[Header.HeaderLength + Header.MessageLength]);
 
-                TcpData.Message = Encoding.UTF8.GetBytes(Message);
+            PacketBuffer.Slice(0, Header.HeaderLength).CopyTo(Header.Serialize());
+            PacketBuffer.Slice(Header.HeaderLength, Header.MessageLength).CopyTo(Data.Serialize());
 
-                TcpHeader.MessageLength = TcpData.Message.Length;
-            }
-            catch (Exception E)
-            {
-                Console.WriteLine(E);
-            }
+            return PacketBuffer;
         }
 
-        public byte[] Write()
+        public Header ReadHeader(Memory<byte> Buffer) // Byte -> Packet
         {
-            this.WriteBuffer = PacketConverter.ConvertPacketToByte(TcpHeader, TcpData);
-            return WriteBuffer;
+            var HeaderBuffer = Buffer.Slice(0, Unsafe.SizeOf<Header>());
+
+            Header Header = new Header().Deserialize(HeaderBuffer);
+            return Header;
         }
 
-        public Packet Read(byte[] ReadBuffer)
+        public Data ReadData(Memory<byte> Buffer, Header Header) // Byte -> Packet
         {
-            return PacketConverter.ConvertByteToPacket(ReadBuffer);
-        }
+            var DataBuffer = Buffer.Slice(Header.HeaderLength, Header.MessageLength);
 
-        #region Access PacketData Func
-        public int GetHeaderLength()
-        {
-            return TcpHeader.HeaderLength;
-        }
-        public SendType GetSendType()
-        {
-            return TcpHeader.SendType;
-        }
-        public int GetID()
-        {
-            return TcpHeader.OwnerId;
-        }
-        public int GetDataLength()
-        {
-            return TcpHeader.MessageLength;
-        }
-        public string GetMessage()
-        {
-            return Encoding.UTF8.GetString(TcpData.Message);
-        }
-        #endregion
-    }
-
-    public unsafe class PacketConverter
-    {
-        public static byte[] ConvertPacketToByte(Header Header, Data Data) // Packet -> Byte
-        {
-            var HeaderByteArray = new Span<byte>(&Header, Header.HeaderLength).ToArray();
-            var DataByteArray = Data.Message;
-
-            int ReturnBufferSize = HeaderByteArray.Length + DataByteArray.Length;
-
-            byte[] ReturnBuffer = new byte[ReturnBufferSize];
-
-            Buffer.BlockCopy(HeaderByteArray, 0, ReturnBuffer, 0, Header.HeaderLength);
-            Buffer.BlockCopy(DataByteArray, 0, ReturnBuffer, Header.HeaderLength, Header.MessageLength);
-
-            return ReturnBuffer;
-        }
-
-        public static Packet ConvertByteToPacket(byte[] PacketBuffer) // Byte -> Packet
-        {
-            var SpanPacketBuffer = new Span<byte>(PacketBuffer);
-
-            Header ReturnHeader = new Header();
-            Data ReturnData = new Data();
-
-            byte[] HeaderBuffer = SpanPacketBuffer.Slice(0, sizeof(Header)).ToArray();
-
-            fixed (byte* HeaderByte = HeaderBuffer)
-            {
-                ReturnHeader = *(Header*)HeaderByte;
-            }
-
-            ReturnData.Message = SpanPacketBuffer.Slice(sizeof(Header), ReturnHeader.MessageLength).ToArray();
-
-            Packet ReturnPacket = new Packet(ReturnHeader, ReturnData);
-            return ReturnPacket;
-        }
-
-        public static Header ConvertByteToPacketHeader(byte[] Buffer, int Start) // Byte -> Packet
-        {
-            var SpanHeaderBuffer = new Span<byte>(Buffer);
-            byte[] HeaderBuffer = SpanHeaderBuffer.Slice(Start, sizeof(Header)).ToArray();
-
-            fixed (byte* HeaderByte = HeaderBuffer)
-            {
-                return *(Header*)HeaderByte;
-            }
+            Data Data = new Data().Deserialize(DataBuffer, Header.MessageLength);
+            return Data;
         }
     }
 }
