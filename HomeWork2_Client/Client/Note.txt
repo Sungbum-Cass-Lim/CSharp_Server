@@ -53,8 +53,8 @@ var buf1 = new byte[1024];
 var buf2 = new byte[1024];
 
 Array.Copy(buf1, buf2, buf1.Length);
-Buffer.BlockCopy(buf1, 0, buf2, 0, buf1.Length);
-Buffer.BlockCopy(buf1, 100, buf1, 0, buf1.Length - 100);
+buffer.BlockCopy(buf1, 0, buf2, 0, buf1.Length);
+buffer.BlockCopy(buf1, 100, buf1, 0, buf1.Length - 100);
 
 int foo;
 
@@ -76,7 +76,7 @@ int foo;
     fixed (byte* dst = &buf1[0])
     {
         void* src = &foo;
-        Buffer.MemoryCopy(src, dst, sizeof(int), sizeof(int));
+        buffer.MemoryCopy(src, dst, sizeof(int), sizeof(int));
     };
 }
 ------------------------------------ 메모리 복사 방법들(Ref 제약조건 이해용)  

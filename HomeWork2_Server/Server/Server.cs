@@ -9,7 +9,7 @@ namespace Server_Homework
     public class Server
     {
         private Socket ServerSocket = null;
-        private PacketProcessor PacketProcessor = null;
+        private DataProcessor DataProcessor = null;
         private Task AcceptLoopTask;
 
         private int IDCount = 1;
@@ -24,7 +24,7 @@ namespace Server_Homework
         {
             Console.WriteLine("Server State: Start");
 
-            PacketProcessor = new PacketProcessor(this);
+            DataProcessor = new DataProcessor(this);
 
             ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             ServerSocket.Bind(new IPEndPoint(IPAddress.Any, 7000));
@@ -62,7 +62,7 @@ namespace Server_Homework
                 if (ClientSocketDictionary.TryAdd(IDCount, NewClientSocket))
                 {
                     ClientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
-                    NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+                    await NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
 
                     IDCount++;
                 }
@@ -74,19 +74,43 @@ namespace Server_Homework
         }
         #endregion
 
-        public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
+        //public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
+        //{
+        //    DataProcessor.AddPacket(Packet);
+        //}
+
+        public async Task Unicast(int id, string msg) // 지정 전송
         {
-            PacketProcessor.AddPacket(Packet);
+            await ClientSocketDictionary[id].Send(id, msg);
         }
 
-        public void DisconnectScoket(int SocketID)
+        public async Task Broadcast(int id, string msg) // 모두 전송
         {
-            Console.WriteLine($"Disconnect Clinet ID: {SocketID}");
+            foreach (ClientSocket ClientSocket in ClientSocketList)
+            {
+                await ClientSocket.Send(id, msg);
+            }
+        }
+
+        public async Task Multicast(int id, string msg) // 해당 id 빼고 모두 전송
+        {
+            foreach (ClientSocket ClientSocket in ClientSocketList)
+            {
+                if (ClientSocket.GetId() != id)
+                {
+                    await ClientSocket.Send(id, msg);
+                }
+            }
+        }
+
+        public async Task DisconnectScoket(int SocketID)
+        {
+            Console.WriteLine($"Disconnect Clinet id: {SocketID}");
 
             // Lock을 안써도 상호 배제와 삭제 가능
             if (ClientSocketDictionary.TryRemove(SocketID, out ClientSocket ClientSocket)) // 이 부분을 아예 건너뜀 왜?
             {
-                ClientSocket.Send(SocketID, "Q");
+                await ClientSocket.Send(SocketID, "Q");
                 ClientSocket.Close();
 
                 ClientSocketList.Remove(ClientSocket);

@@ -10,9 +10,9 @@ namespace Server_Homework
     {
         static void Main(string[] args)
         {
-            Server MainServer = new Server();
+            Server mainServer = new Server();
 
-            MainServer.Initialize();
+            mainServer.Initialize();
 
             while (true)
             {

@@ -11,7 +11,7 @@ namespace Client
 {
     struct Header
     {
-        //public readonly int HeaderSize = Unsafe.SizeOf<Header>();
+        //public readonly int headerSize = Unsafe.SizeOf<Header>();
 
         public int Tag;
         public int Length;
@@ -46,7 +46,7 @@ namespace Client
             var total_recv_bytes = 0;
 
             const int RECV_SIZE = 16;
-            int HeaderSize = Unsafe.SizeOf<Header>();
+            int headerSize = Unsafe.SizeOf<Header>();
             while (true)
             {
                 if ((buf.Length - total_recv_bytes) < RECV_SIZE)
@@ -61,18 +61,18 @@ namespace Client
 
                 while (true)
                 {
-                    if (total_recv_bytes < HeaderSize) {
+                    if (total_recv_bytes < headerSize) {
                         continue;
                     }
 
                     var header = Header.Parse(buf.Slice(0, total_recv_bytes));
 
-                    if (total_recv_bytes - HeaderSize < header.Length)
+                    if (total_recv_bytes - headerSize < header.Length)
                     {
                         continue;
                     }
 
-                    var payload = buf.Slice(HeaderSize, header.Length);
+                    var payload = buf.Slice(headerSize, header.Length);
                     this.Callback(header.Tag, payload);
                 }
             }
@@ -108,7 +108,7 @@ namespace Client
         //while (true)
         //{
         //var buffer = memory.Slice(received, 5);
-        //var bytes = await MySocket.ReceiveAsync(buffer, SocketFlags.None);
+        //var bytes = await mySocket.ReceiveAsync(buffer, SocketFlags.None);
         //    if (received + bytes < Header.Length)
         //    {
         //        received += bytes;

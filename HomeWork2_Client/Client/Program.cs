@@ -6,12 +6,12 @@ namespace Server_Homework
     {
         static async Task Main(string[] args)
         {
-            Client MainClient = new Client();
-            await MainClient.CreateSocket();
+            Client mainClient = new Client();
+            await mainClient.CreateSocket();
 
             while (true)
             {
-                await MainClient.Send(Console.ReadLine());
+                await mainClient.Send(Console.ReadLine());
             }
         }
     }

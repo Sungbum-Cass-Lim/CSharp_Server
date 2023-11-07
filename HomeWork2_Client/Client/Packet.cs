@@ -1,5 +1,4 @@
-﻿using Client;
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Dynamic;
 using System.Net.NetworkInformation;
@@ -11,47 +10,47 @@ namespace Server_Homework
 {
     public enum SendType
     {
-        BroadCast = 1,
-        MultiCast = 2,
-        UniCast = 3,
+        broadCast = 1,
+        multiCast = 2,
+        uniCast = 3,
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Header
     {
-        public int HeaderLength;
-        public int MessageLength;
-        public int OwnerId;
-        public SendType SendType;
+        public int headerLength;
+        public int messageLength;
+        public int ownerId;
+        public SendType sendType;
 
-        public Header Initialize(int MsgLength, int Id, SendType Type)
+        public Header Initialize(int msgLength, int id, SendType type)
         {
-            HeaderLength = Unsafe.SizeOf<Header>();
-            MessageLength = MsgLength;
-            OwnerId = Id;
-            SendType = Type;
+            headerLength = Unsafe.SizeOf<Header>();
+            messageLength = msgLength;
+            ownerId = id;
+            sendType = type;
 
             return this;
         }
 
         public unsafe Memory<byte> Serialize()
         {
-            Header TargetHeader = this;
-            byte[] HeaderByte = new byte[HeaderLength];
+            Header targetHeader = this;
+            byte[] headerByte = new byte[headerLength];
 
-            fixed (byte* HeaderBytes = HeaderByte)
+            fixed (byte* headerBytes = headerByte)
             {
-                Buffer.MemoryCopy(&TargetHeader, HeaderBytes, 0, HeaderLength);
+                Buffer.MemoryCopy(&targetHeader, headerBytes, headerLength, headerLength);
             }
 
-            return new Memory<byte>(HeaderByte);
+            return new Memory<byte>(headerByte);
         }
 
-        public unsafe Header Deserialize(Memory<byte> ReadBuffer)
+        public unsafe Header Deserialize(Memory<byte> readBuffer)
         {
-            fixed (byte* HeaderPtr = ReadBuffer.Span)
+            fixed (byte* headerPtr = readBuffer.Span)
             {
-                return *(Header*)HeaderPtr;
+                return *(Header*)headerPtr;
             }
         }
     }
@@ -59,54 +58,54 @@ namespace Server_Homework
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Data
     {
-        public string Message;
+        public string message;
 
-        public Data Initialize(string Msg)
+        public Data Initialize(string msg)
         {
-            Message = Msg;
+            message = msg;
 
             return this;
         }
 
         public Memory<byte> Serialize()
         {
-            Data TartgetData = this;
-            var MessageEncodingValue = Encoding.UTF8.GetBytes(TartgetData.Message);
+            Data tartgetData = this;
+            var messageEncodingValue = Encoding.UTF8.GetBytes(tartgetData.message);
 
-            return new Memory<byte>(MessageEncodingValue);
+            return new Memory<byte>(messageEncodingValue);
         }
 
-        public Data Deserialize(Memory<byte> ReadBuffer, int MsgLength)
+        public Data Deserialize(Memory<byte> readbuffer)
         {
-            Data Data = this;
-            Data.Message = Encoding.UTF8.GetString(ReadBuffer.Span);
+            Data data = this;
+            data.message = Encoding.UTF8.GetString(readbuffer.Span);
 
-            return Data;
+            return data;
         }
     }
 
     public class Packet
     {
-        public Memory<byte> WritePacket(Header Header, Data Data) // Packet -> Byte
+        public Memory<byte> WritePacket(Header header, Data data) // Packet -> Byte
         {
-            var PacketBuffer = new Memory<byte>(new byte[Header.HeaderLength + Header.MessageLength]);
+            var Packetbuffer = new Memory<byte>(new byte[header.headerLength + header.messageLength]);
 
-            PacketBuffer.Slice(0, Header.HeaderLength).CopyTo(Header.Serialize());
-            PacketBuffer.Slice(Header.HeaderLength, Header.MessageLength).CopyTo(Data.Serialize());
+            header.Serialize().CopyTo(Packetbuffer.Slice(0, header.headerLength));
+            data.Serialize().CopyTo(Packetbuffer.Slice(header.headerLength, header.messageLength));
 
-            return PacketBuffer;
+            return Packetbuffer;
         }
 
-        public Header ReadHeader(Memory<byte> HeaderBuffer) // Byte -> Packet
+        public Header ReadHeader(Memory<byte> headerBuffer) // Byte -> Packet
         {
-            Header Header = new Header().Deserialize(HeaderBuffer);
+            Header header = new Header().Deserialize(headerBuffer);
 
-            return Header;
+            return header;
         }
 
-        public Data ReadData(Memory<byte> DataBuffer, Header Header) // Byte -> Packet
+        public Data ReadData(Memory<byte> dataBuffer) // Byte -> Packet
         {
-            Data Data = new Data().Deserialize(DataBuffer, Header.MessageLength);
+            Data Data = new Data().Deserialize(dataBuffer);
 
             return Data;
         }
