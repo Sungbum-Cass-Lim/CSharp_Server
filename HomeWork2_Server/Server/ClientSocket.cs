@@ -5,6 +5,16 @@ using System.Text;
 
 namespace Server_Homework
 {
+    //일단 클라가 먼저 접속, 종료를 보내는 가정
+    public enum SocketState
+    {
+        NONE = 0,
+        ESTABLISHED,
+        CLOSE_WAIT,
+        LAST_ACK,
+        CLOSED
+    }
+
     public class ClientSocket
     {
         private const int BUFFER_SIZE = 8;
@@ -13,6 +23,7 @@ namespace Server_Homework
         private Server mainServer = null;
 
         private int myId;
+        private SocketState myState = SocketState.NONE;
         private Socket mySocket;
         private Task receiveLoopTask;
 
@@ -20,6 +31,7 @@ namespace Server_Homework
         {
             mainServer = server;
             myId = id;
+            myState = SocketState.ESTABLISHED;
             mySocket = socket;
 
             receiveLoopTask = _ReceiveLoop();

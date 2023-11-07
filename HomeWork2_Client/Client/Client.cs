@@ -7,16 +7,28 @@ using System.Runtime.InteropServices;
 
 namespace Server_Homework
 {
+    //일단 클라가 먼저 접속, 종료를 보내는 가정
+    public enum SocketState
+    {
+        NONE = 0,
+        SYN_SENT,
+        ESTABLISHED_NULL_ID,
+        ESTABLISHED_ID,
+        FIN_WAIT_1,
+        FIN_WAIT_2,
+        TIME_WAIT,
+        CLOSED
+    }
+
     public class Client
     {
         private const int BUFFER_SIZE = 8;
         private const int READ_SIZE = 2;
 
         private int myId;
+        private SocketState myState = SocketState.NONE;
         private Socket mySocket;
         private Task _ReceiveLoopTask;
-
-        private bool isConnect = false;
 
         public async Task CreateSocket()
         {
@@ -29,8 +41,10 @@ namespace Server_Homework
         private async Task _Connect()
         {
             Console.WriteLine("State: Try Connect...");
+            _ChangeSocketState(SocketState.SYN_SENT);
             await mySocket.ConnectAsync(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000)); // 서버 연결 시도
 
+            _ChangeSocketState(SocketState.ESTABLISHED_NULL_ID);
             Console.WriteLine("State: Success Connect!"); // 서버 연결 성공
             _ReceiveLoopTask = _ReceiveLoop();
             return;
@@ -38,16 +52,16 @@ namespace Server_Homework
 
         public async Task Send(string msg)
         {
+            //Socket 연결 안되있을 때 보내려 하면 리턴
+            if (myState == SocketState.ESTABLISHED_NULL_ID)
+                return;
+
             Packet sendPacket = new Packet();
 
             msg = $"Send:{myId} -> {msg}";
 
             Header tcpHeader = new Header().Initialize(msg.Length, myId, SendType.broadCast);
             Data tcpData = new Data().Initialize(msg);
-            
-            //Socket 연결 안되있을 때 보내려 하면 리턴
-            if (!isConnect)
-                return;
 
             try
             {
@@ -79,9 +93,9 @@ namespace Server_Homework
                     if (_HeaderProcess(ref readBuffer, ref readOffset, totalRecv, out Header tcpHeader) == false)
                         continue;
 
-                    if (isConnect == false)
+                    if (myState == SocketState.ESTABLISHED_NULL_ID)
                     {
-                        isConnect = true;
+                        _ChangeSocketState(SocketState.ESTABLISHED_ID);
                         myId = tcpHeader.ownerId;
                     }
 
@@ -175,22 +189,31 @@ namespace Server_Homework
             return true;
         }
 
-        private void TryDisconnet(string message)
+        #region DisconnectFlow
+        private void _SendDisconnectFin()
         {
-            // 종료 메세지면 다시 받기 멈춤
-            if (message == "Q" || message == "q")
-            {
-                _Disconnect();
-                _ReceiveLoopTask.Wait();
-            }
+
+        }
+        
+        private void _SendDisconnectAck()
+        {
+            mySocket.Shutdown(SocketShutdown.Send);
         }
 
-        private void _Disconnect()
+        private void _ReceiveDisconnectFin()
         {
-            Console.WriteLine($"DisConnect Server");
-
             mySocket.Shutdown(SocketShutdown.Receive);
-            mySocket.Close();
         }
+
+        private void _ReceiveDisconnectAck()
+        {
+
+        }
+
+        private void _ChangeSocketState(SocketState state)
+        {
+            myState = state;
+        }
+        #endregion
     }
 }
