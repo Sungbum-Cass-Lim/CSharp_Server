@@ -44,7 +44,8 @@ namespace Server_Homework
 
             Header tcpHeader = new Header().Initialize(msg.Length, myId, SendType.broadCast);
             Data tcpData = new Data().Initialize(msg);
-
+            
+            //Socket 연결 안되있을 때 보내려 하면 리턴
             if (!isConnect)
                 return;
 
@@ -61,7 +62,7 @@ namespace Server_Homework
 
         private async Task _ReceiveLoop()
         {
-            Memory<byte> readbuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
+            Memory<byte> readBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
 
             int readOffset = 0;
             int totalRecv = 0;
@@ -71,10 +72,11 @@ namespace Server_Homework
                 try
                 {
                     //Receive받은 데이터의 크기 가중
-                    totalRecv += await mySocket.ReceiveAsync(readbuffer.Slice(totalRecv, READ_SIZE),
+                    totalRecv += await mySocket.ReceiveAsync(readBuffer.Slice(totalRecv, READ_SIZE),
                         SocketFlags.None);
 
-                    if (_HeaderProcess(ref readbuffer, ref readOffset, totalRecv, out Header tcpHeader) == false)
+                    //TODO: if 뺄 수 있나 해봐야함
+                    if (_HeaderProcess(ref readBuffer, ref readOffset, totalRecv, out Header tcpHeader) == false)
                         continue;
 
                     if (isConnect == false)
@@ -83,18 +85,17 @@ namespace Server_Homework
                         myId = tcpHeader.ownerId;
                     }
 
-                    if (_DataProcess(ref readbuffer, ref readOffset, totalRecv, tcpHeader) == false)
+                    //TODO: 여기도 위 if문이랑 마찬가지 
+                    if (_DataProcess(ref readBuffer, ref readOffset, totalRecv, tcpHeader) == false)
                         continue;
 
-
-
                     //패킷 하나를 처리 후 버퍼에 다음 패킷이 같이 들어왔을때
-                    if (readbuffer.Span[readOffset] != 0)
+                    if (readBuffer.Span[readOffset] != 0)
                     {
-                        var savebuffer = readbuffer.Slice(readOffset, totalRecv - readOffset);
+                        var savebuffer = readBuffer.Slice(readOffset, totalRecv - readOffset);
                         int newBufferSize = (savebuffer.Length < BUFFER_SIZE ? BUFFER_SIZE : savebuffer.Length) * 2;
-                        readbuffer = new Memory<byte>(new byte[newBufferSize]);
-                        savebuffer.CopyTo(readbuffer);
+                        readBuffer = new Memory<byte>(new byte[newBufferSize]);
+                        savebuffer.CopyTo(readBuffer);
 
                         totalRecv = savebuffer.Length;
                         readOffset = 0;
@@ -104,7 +105,7 @@ namespace Server_Homework
 
                     totalRecv = 0;
                     readOffset = 0;
-                    readbuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
+                    readBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
                 }
                 catch (Exception e)
                 {

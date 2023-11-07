@@ -75,10 +75,10 @@ namespace Server_Homework
             return new Memory<byte>(messageEncodingValue);
         }
 
-        public Data Deserialize(Memory<byte> readbuffer)
+        public Data Deserialize(Memory<byte> readBuffer)
         {
             Data data = this;
-            data.message = Encoding.UTF8.GetString(readbuffer.Span);
+            data.message = Encoding.UTF8.GetString(readBuffer.Span);
 
             return data;
         }
