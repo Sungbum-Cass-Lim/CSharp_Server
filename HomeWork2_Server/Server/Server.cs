@@ -74,11 +74,6 @@ namespace Server_Homework
         }
         #endregion
 
-        //public void AddPacket(Packet Packet) // PacketQueue에 Packet 추가
-        //{
-        //    DataProcessor.AddPacket(Packet);
-        //}
-
         public async Task Unicast(int id, string msg) // 지정 전송
         {
             await ClientSocketDictionary[id].Send(id, msg);
@@ -103,17 +98,11 @@ namespace Server_Homework
             }
         }
 
-        public async Task DisconnectScoket(int SocketID)
+        public void RemoveClientSocketData(int socketId)
         {
-            Console.WriteLine($"Disconnect Clinet id: {SocketID}");
-
-            // Lock을 안써도 상호 배제와 삭제 가능
-            if (ClientSocketDictionary.TryRemove(SocketID, out ClientSocket ClientSocket)) // 이 부분을 아예 건너뜀 왜?
+            if(ClientSocketDictionary.TryRemove(socketId, out var clientSocket))
             {
-                await ClientSocket.Send(SocketID, "Q");
-                ClientSocket.Close();
-
-                ClientSocketList.Remove(ClientSocket);
+                ClientSocketList.Remove(clientSocket);
             }
         }
     }

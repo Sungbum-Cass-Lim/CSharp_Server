@@ -45,6 +45,9 @@ namespace Server_Homework
 
         public async Task Send(int id, string msg)
         {
+            mySocket.Shutdown(SocketShutdown.Both);
+            mySocket.Close();
+
             Packet sendPacket = new Packet();
 
             Header tcpHeader = new Header().Initialize(msg.Length, id, SendType.broadCast);
@@ -98,6 +101,18 @@ namespace Server_Homework
                     totalRecv = 0;
                     readOffset = 0;
                     readbuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
+                }
+                //클라쪽에서 강제로 종료 했을 시 예외처리
+                catch (SocketException se)
+                {
+                    Console.WriteLine("----------------------------------------------------------------");
+                    Console.WriteLine($"Socket:{myId} -> {se.Message}");
+                    Console.WriteLine($"Socket:{myId} -> Disconnect");
+                    Console.WriteLine("----------------------------------------------------------------");
+
+                    _SocketDisconnect();
+
+                    return;
                 }
                 catch (Exception e)
                 {
@@ -164,15 +179,30 @@ namespace Server_Homework
 
             //메세지가 출력되면 일단은 성공
             Console.WriteLine(tcpData.message);
-            mainServer.Broadcast(tcpHeader.ownerId, tcpData.message);
+
+            //클라 ReceiveShotDown
+            if (tcpData.message == "Q" || tcpData.message == "q")
+            {
+                mySocket.Shutdown(SocketShutdown.Receive);
+                Task Send = mainServer.Unicast(tcpHeader.ownerId, tcpData.message);
+            }
+
+            else
+            {
+                Task Send = mainServer.Broadcast(tcpHeader.ownerId, tcpData.message);
+            }
 
             return true;
         }
 
-        public void Close()
+        private void _SocketDisconnect()
         {
-            mySocket.Shutdown(SocketShutdown.Receive);
+            mySocket.Shutdown(SocketShutdown.Both);
             mySocket.Close();
+
+            mainServer.RemoveClientSocketData(myId);
+
+            receiveLoopTask.Wait();
         }
     }
 }

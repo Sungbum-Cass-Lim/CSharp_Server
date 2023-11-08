@@ -122,5 +122,10 @@ namespace Client
          * 
          * 추가: 소켓이 끊어졌을 때의 처리가 안되어 있음.
          */
+
+        //static Header()
+        //{
+        //    HeaderSize = Unsafe.SizeOf<Header>();
+        //}
     }
 }

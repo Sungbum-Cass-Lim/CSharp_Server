@@ -7,6 +7,7 @@ namespace Server_Homework
         static async Task Main(string[] args)
         {
             Client mainClient = new Client();
+
             await mainClient.CreateSocket();
 
             while (true)

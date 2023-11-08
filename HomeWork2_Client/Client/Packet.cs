@@ -1,7 +1,9 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.SymbolStore;
 using System.Dynamic;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -18,40 +20,43 @@ namespace Server_Homework
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Header
     {
-        public int headerLength;
+        public static readonly int HeaderSize = Unsafe.SizeOf<Header>();
+
         public int messageLength;
         public int ownerId;
         public SendType sendType;
 
-        public Header Initialize(int msgLength, int id, SendType type)
+        public Header(int msgLength, int id, SendType type)
         {
-            headerLength = Unsafe.SizeOf<Header>();
             messageLength = msgLength;
             ownerId = id;
             sendType = type;
-
-            return this;
         }
 
         public unsafe Memory<byte> Serialize()
         {
             Header targetHeader = this;
-            byte[] headerByte = new byte[headerLength];
+            byte[] headerByte = new byte[HeaderSize];
 
             fixed (byte* headerBytes = headerByte)
             {
-                Buffer.MemoryCopy(&targetHeader, headerBytes, headerLength, headerLength);
+                Buffer.MemoryCopy(&targetHeader, headerBytes, HeaderSize, HeaderSize);
             }
 
             return new Memory<byte>(headerByte);
         }
 
-        public unsafe Header Deserialize(Memory<byte> readBuffer)
+        //불필요한 Header재생성을 막기 위해 outX(※ Dictionary의 TryAdd참고)
+        public unsafe bool TryDeserialize(Memory<byte> readBuffer)
         {
+            if (readBuffer.Length < HeaderSize)
+                return false;
+
             fixed (byte* headerPtr = readBuffer.Span)
             {
-                return *(Header*)headerPtr;
+                this = *(Header*)headerPtr;
             }
+            return true;
         }
     }
 
@@ -60,54 +65,25 @@ namespace Server_Homework
     {
         public string message;
 
-        public Data Initialize(string msg)
+        public Data(string msg)
         {
             message = msg;
-
-            return this;
         }
 
         public Memory<byte> Serialize()
         {
-            Data tartgetData = this;
-            var messageEncodingValue = Encoding.UTF8.GetBytes(tartgetData.message);
+            var messageEncodingValue = Encoding.UTF8.GetBytes(message);
 
             return new Memory<byte>(messageEncodingValue);
         }
 
-        public Data Deserialize(Memory<byte> readBuffer)
+        public bool TryDeserialize(Memory<byte> readBuffer, int msgLength)
         {
-            Data data = this;
-            data.message = Encoding.UTF8.GetString(readBuffer.Span);
+            if (readBuffer.Length < msgLength)
+                return false;
 
-            return data;
-        }
-    }
-
-    public class Packet
-    {
-        public Memory<byte> WritePacket(Header header, Data data) // Packet -> Byte
-        {
-            var Packetbuffer = new Memory<byte>(new byte[header.headerLength + header.messageLength]);
-
-            header.Serialize().CopyTo(Packetbuffer.Slice(0, header.headerLength));
-            data.Serialize().CopyTo(Packetbuffer.Slice(header.headerLength, header.messageLength));
-
-            return Packetbuffer;
-        }
-
-        public Header ReadHeader(Memory<byte> headerBuffer) // Byte -> Packet
-        {
-            Header header = new Header().Deserialize(headerBuffer);
-
-            return header;
-        }
-
-        public Data ReadData(Memory<byte> dataBuffer) // Byte -> Packet
-        {
-            Data Data = new Data().Deserialize(dataBuffer);
-
-            return Data;
+            message = Encoding.UTF8.GetString(readBuffer.Span);
+            return true;
         }
     }
 }
