@@ -2,26 +2,34 @@
 
 namespace Server_Homework
 {
-    public static class SocketExtentions
+    //소켓 관련 Extionsion Method
+    public static class SocketExtensions
     {
         public static ValueTask<int> SendAsync(this Socket socket, Header header, Data data)
         {
-            var packetbuffer = new Memory<byte>(new byte[Header.HeaderSize + header.messageLength]);
+            var packetBuffer = new Memory<byte>(new byte[Header.HeaderSize + header.messageLength]);
 
             var headerMemory = header.Serialize();
             var dataMemory = data.Serialize();
 
-            if (false == headerMemory.TryCopyTo(packetbuffer.Slice(0, Header.HeaderSize)))
+            if (false == headerMemory.TryCopyTo(packetBuffer.Slice(0, Header.HeaderSize)))
                 throw new Exception("Failed Header Copy");
 
-            if (false == dataMemory.TryCopyTo(packetbuffer.Slice(Header.HeaderSize, header.messageLength)))
+            if (false == dataMemory.TryCopyTo(packetBuffer.Slice(Header.HeaderSize, header.messageLength)))
                 throw new Exception("Failed Data Copy");
 
-            return socket.SendAsync(packetbuffer, SocketFlags.None);
+            return socket.SendAsync(packetBuffer, SocketFlags.None);
+        }
+
+        public static void SocketDisconnect(this Socket socket)
+        {
+            socket.Shutdown(SocketShutdown.Both);
+            socket.Close();
         }
     }
 
-    public static class BufferExtentions
+    //버퍼 관련 Extension Method
+    public static class BufferExtensions
     {
         public static Memory<byte> MultiplyBufferSize(this Memory<byte> buffer, int multipleValue = 2)
         {

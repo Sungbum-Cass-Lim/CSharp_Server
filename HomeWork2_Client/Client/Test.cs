@@ -125,7 +125,7 @@ namespace Client
 
         //static Header()
         //{
-        //    HeaderSize = Unsafe.SizeOf<Header>();
+        //    headerSize = Unsafe.SizeOf<Header>();
         //}
     }
 }

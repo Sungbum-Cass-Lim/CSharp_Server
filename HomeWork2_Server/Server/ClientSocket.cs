@@ -25,7 +25,6 @@ namespace Server_Homework
         private int myId;
         private SocketState myState = SocketState.NONE;
         private Socket mySocket;
-        private Task receiveLoopTask;
 
         public ClientSocket Initialize(Server server, int id, Socket socket)
         {
@@ -34,7 +33,7 @@ namespace Server_Homework
             myState = SocketState.ESTABLISHED;
             mySocket = socket;
 
-            receiveLoopTask = _ReceiveLoop();
+            _ReceiveLoopAsync();
             return this;
         }
 
@@ -45,164 +44,62 @@ namespace Server_Homework
 
         public async Task Send(int id, string msg)
         {
-            mySocket.Shutdown(SocketShutdown.Both);
-            mySocket.Close();
-
-            Packet sendPacket = new Packet();
-
-            Header tcpHeader = new Header().Initialize(msg.Length, id, SendType.broadCast);
-            Data tcpData = new Data().Initialize(msg);
+            Header header = new Header(msg.Length, id, SendType.broadCast);
+            Data data = new Data(msg);
 
             try
             {
-                await mySocket.SendAsync(sendPacket.WritePacket(tcpHeader, tcpData), SocketFlags.None);
+                //확장 메서드
+                await mySocket.SendAsync(header, data);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                return;
+                Console.WriteLine($"Exception -> {e}");
+                mySocket.SocketDisconnect();
             }
         }
 
-        private async Task _ReceiveLoop()
+        private async void _ReceiveLoopAsync()
         {
-            Memory<byte> readbuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
+            Memory<byte> readBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
 
             int readOffset = 0;
-            int totalRecv = 0;
+            int totalRecvByte = 0;
 
             while (true)
             {
-                try
-                {
-                    //Receive받은 데이터의 크기 가중
-                    totalRecv += await mySocket.ReceiveAsync(readbuffer.Slice(totalRecv, READ_SIZE),
+                if (readBuffer.Length - READ_SIZE <= totalRecvByte) {
+                    readBuffer = readBuffer.MultiplyBufferSize(2);
+                }
+
+                totalRecvByte += await mySocket.ReceiveAsync(readBuffer.Slice(totalRecvByte, READ_SIZE),
                         SocketFlags.None);
 
-                    if (_HeaderProcess(ref readbuffer, ref readOffset, totalRecv, out Header tcpHeader) == false)
-                        continue;
+                while (Header.HeaderSize < totalRecvByte) {
+                    Header header = new Header();
 
-                    if (_DataProcess(ref readbuffer, ref readOffset, totalRecv, tcpHeader) == false)
-                        continue;
-
-                    if (readbuffer.Span[readOffset] != 0)
-                    {
-                        var savebuffer = readbuffer.Slice(readOffset, totalRecv - readOffset);
-                        int newBufferSize = (savebuffer.Length < BUFFER_SIZE ? BUFFER_SIZE : savebuffer.Length) * 2;
-                        readbuffer = new Memory<byte>(new byte[newBufferSize]);
-                        savebuffer.CopyTo(readbuffer);
-
-                        totalRecv = savebuffer.Length;
-                        readOffset = 0;
-
-                        continue;
+                    // 데이터가 깨진 상태에 대한 예외 처리 필요.
+                    if (false == header.TryDeserialize(readBuffer.Slice(readOffset, totalRecvByte))) {
+                        break;
                     }
 
-                    totalRecv = 0;
-                    readOffset = 0;
-                    readbuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
-                }
-                //클라쪽에서 강제로 종료 했을 시 예외처리
-                catch (SocketException se)
-                {
-                    Console.WriteLine("----------------------------------------------------------------");
-                    Console.WriteLine($"Socket:{myId} -> {se.Message}");
-                    Console.WriteLine($"Socket:{myId} -> Disconnect");
-                    Console.WriteLine("----------------------------------------------------------------");
+                    if (/*남은 바이트 수*/ < header.messageLength) {
+                        break;
+                    }
 
-                    _SocketDisconnect();
 
-                    return;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
+                    // callback 내에서 throw 하는 경우는 ???
+                    this.Callback(header.messageId, header.messageLength 만큼의 메모리);
+
+
+
+                    readOffset += Header.HeaderSize + header.messageLength;
+
+
+                    //Console.WriteLine($"Recive:{header.ownerId} -> {data.message}");
+                    //await mainServer.Broadcast(header.ownerId, data.message); // <-- Callback 내에서 처리해야 함.
                 }
             }
-        }
-
-        private bool _HeaderProcess(ref Memory<byte> buffer, ref int readOffset, int totalRecv, out Header tcpHeader)
-        {
-            Packet receivePacket = new Packet();
-
-            tcpHeader = new Header();
-            int headerSize = Unsafe.SizeOf<Header>();
-
-            //버퍼의 한계까지 데이터를 받았지만 headerSize보다 작을 때
-            if (totalRecv >= buffer.Length - READ_SIZE && totalRecv < headerSize)
-            {
-                var newBuffer = new Memory<byte>(new byte[buffer.Length * 2]);
-                buffer.CopyTo(newBuffer);
-                buffer = newBuffer;
-
-                return false;
-            }
-
-            //그냥 받은 데이터가 Header 사이즈보다 작을 때
-            else if (totalRecv < headerSize)
-            {
-                return false;
-            }
-
-            //Header버퍼를 다 받아왔다면 해당 버퍼를 Header로 변환
-            var headerBuffer = buffer.Slice(0, headerSize);
-            tcpHeader = receivePacket.ReadHeader(headerBuffer);
-            readOffset = headerSize;
-
-            return true;
-        }
-
-        private bool _DataProcess(ref Memory<byte> buffer, ref int readOffset, int totalRecv, Header tcpHeader)
-        {
-            Packet receivePacket = new Packet();
-
-            int headerSize = Unsafe.SizeOf<Header>();
-
-            //버퍼의 한계까지 데이터를 받았지만 MessageSize보다 작을 때
-            if (totalRecv >= buffer.Length - READ_SIZE && totalRecv - headerSize < tcpHeader.messageLength)
-            {
-                var newBuffer = new Memory<byte>(new byte[buffer.Length * 2]);
-                buffer.CopyTo(newBuffer);
-                buffer = newBuffer;
-
-                return false;
-            }
-
-            //그냥 받은 데이터가 message 사이즈보다 작을 때
-            else if (totalRecv - headerSize < tcpHeader.messageLength)
-                return false;
-
-            //Data버퍼를 다 받아왔다면 해당 버퍼를 Data로 변환
-            var dataBuffer = buffer.Slice(readOffset, tcpHeader.messageLength);
-            Data tcpData = receivePacket.ReadData(dataBuffer);
-            readOffset += tcpHeader.messageLength;
-
-            //메세지가 출력되면 일단은 성공
-            Console.WriteLine(tcpData.message);
-
-            //클라 ReceiveShotDown
-            if (tcpData.message == "Q" || tcpData.message == "q")
-            {
-                mySocket.Shutdown(SocketShutdown.Receive);
-                Task Send = mainServer.Unicast(tcpHeader.ownerId, tcpData.message);
-            }
-
-            else
-            {
-                Task Send = mainServer.Broadcast(tcpHeader.ownerId, tcpData.message);
-            }
-
-            return true;
-        }
-
-        private void _SocketDisconnect()
-        {
-            mySocket.Shutdown(SocketShutdown.Both);
-            mySocket.Close();
-
-            mainServer.RemoveClientSocketData(myId);
-
-            receiveLoopTask.Wait();
         }
     }
 }

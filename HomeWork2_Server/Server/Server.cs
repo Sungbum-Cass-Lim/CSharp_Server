@@ -8,26 +8,21 @@ namespace Server_Homework
 {
     public class Server
     {
-        private Socket ServerSocket = null;
-        private DataProcessor DataProcessor = null;
-        private Task AcceptLoopTask;
+        private Socket serverSocket;
 
-        private int IDCount = 1;
+        private int iDCount = 1;
 
-        private readonly object LockObj = new object();
-
-        private List<ClientSocket> ClientSocketList = new List<ClientSocket>();
-        private ConcurrentDictionary<int, ClientSocket> ClientSocketDictionary = new ConcurrentDictionary<int, ClientSocket>();
+        private List<ClientSocket> clientSocketList = new List<ClientSocket>();
+        private ConcurrentDictionary<int, ClientSocket> clientSocketDictionary = new ConcurrentDictionary<int, ClientSocket>();
 
         #region Server Start
         public void Initialize()
         {
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(_ProcessCloseEvent);
             Console.WriteLine("Server State: Start");
 
-            DataProcessor = new DataProcessor(this);
-
-            ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            ServerSocket.Bind(new IPEndPoint(IPAddress.Any, 7000));
+            serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            serverSocket.Bind(new IPEndPoint(IPAddress.Any, 7000));
 
             Console.WriteLine("Server State: Bind");
             Listen();
@@ -37,51 +32,51 @@ namespace Server_Homework
         {
             Console.WriteLine("Server State: Listen");
 
-            ServerSocket.Listen(5);
-            AcceptLoopTask = AcceptLoop(); // Accept Loop
+            serverSocket.Listen(5);
+            AcceptLoop(); // Accept Loop
         }
         #endregion
 
         #region ServerAsyncFunc
-        public async Task AcceptLoop()
+        public async void AcceptLoop()
         {
             while (true)
             {
-                await AcceptAsync();
-                Console.WriteLine($"Server State: Accept Client Socket Number {IDCount - 1}");
+                await _AcceptAsync();
+                Console.WriteLine($"Server State: Accept Client Socket Number {iDCount - 1}");
             }
         }
 
-        private async Task AcceptAsync()
+        private async Task _AcceptAsync()
         {
             try
             {
                 ClientSocket NewClientSocket;
-                NewClientSocket = new ClientSocket().Initialize(this, IDCount, await ServerSocket.AcceptAsync());
+                NewClientSocket = new ClientSocket().Initialize(this, iDCount, await serverSocket.AcceptAsync());
 
-                if (ClientSocketDictionary.TryAdd(IDCount, NewClientSocket))
+                if (clientSocketDictionary.TryAdd(iDCount, NewClientSocket))
                 {
-                    ClientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
-                    await NewClientSocket.Send(IDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+                    clientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
+                    await NewClientSocket.Send(iDCount, "Welcome Bro"); // 클라 첫 접속 메세지
 
-                    IDCount++;
+                    iDCount++;
                 }
             }
-            catch(Exception E)
-            { 
-                Console.WriteLine(E); 
+            catch(Exception e)
+            {
+                throw new Exception(e.Message);
             }
         }
         #endregion
 
         public async Task Unicast(int id, string msg) // 지정 전송
         {
-            await ClientSocketDictionary[id].Send(id, msg);
+            await clientSocketDictionary[id].Send(id, msg);
         }
 
         public async Task Broadcast(int id, string msg) // 모두 전송
         {
-            foreach (ClientSocket ClientSocket in ClientSocketList)
+            foreach (ClientSocket ClientSocket in clientSocketList)
             {
                 await ClientSocket.Send(id, msg);
             }
@@ -89,7 +84,7 @@ namespace Server_Homework
 
         public async Task Multicast(int id, string msg) // 해당 id 빼고 모두 전송
         {
-            foreach (ClientSocket ClientSocket in ClientSocketList)
+            foreach (ClientSocket ClientSocket in clientSocketList)
             {
                 if (ClientSocket.GetId() != id)
                 {
@@ -100,10 +95,15 @@ namespace Server_Homework
 
         public void RemoveClientSocketData(int socketId)
         {
-            if(ClientSocketDictionary.TryRemove(socketId, out var clientSocket))
+            if(clientSocketDictionary.TryRemove(socketId, out var clientSocket))
             {
-                ClientSocketList.Remove(clientSocket);
+                clientSocketList.Remove(clientSocket);
             }
+        }
+
+        private async void _ProcessCloseEvent(object? sender, EventArgs e)
+        {
+            await Broadcast(9999, "Q");
         }
     }
 }

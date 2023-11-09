@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Server_Homework
 {
@@ -8,7 +10,7 @@ namespace Server_Homework
         {
             Client mainClient = new Client();
 
-            await mainClient.CreateSocket();
+            mainClient.CreateSocket();
 
             while (true)
             {
