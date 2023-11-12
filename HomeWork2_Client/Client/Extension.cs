@@ -5,15 +5,15 @@ namespace Server_Homework
     //소켓 관련 Extionsion Method
     public static class SocketExtensions
     {
-        public static ValueTask<int> SendAsync(this Socket socket, Header header, Data data)
+        public static ValueTask<int> SendAsync<T>(this Socket socket, Header header, T payload) where T : IPayload
         {
-            var packetBuffer = new Memory<byte>(new byte[Header.headerSize + header.messageLength]);
+            var packetBuffer = new Memory<byte>(new byte[Header.headerLength + header.payloadLength]);
 
             var headerMemory = header.Serialize();
-            var dataMemory = data.Serialize();
+            var payloadMemory = payload.Serialize(header);
 
-            headerMemory.CopyTo(packetBuffer.Slice(0, Header.headerSize));
-            dataMemory.CopyTo(packetBuffer.Slice(Header.headerSize, header.messageLength));
+            headerMemory.CopyTo(packetBuffer.Slice(0, Header.headerLength));
+            payloadMemory.CopyTo(packetBuffer.Slice(Header.headerLength, header.payloadLength));
 
             return socket.SendAsync(packetBuffer, SocketFlags.None);
         }

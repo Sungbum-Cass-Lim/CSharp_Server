@@ -14,7 +14,12 @@ namespace Server_Homework
 
             while (true)
             {
-                await mainClient.Send(Console.ReadLine());
+                string inputMsg = Console.ReadLine();
+
+                Header header = new Header(inputMsg.Length, (int)PayloadTag.msg);
+                Message msg = new Message(inputMsg);
+
+                await mainClient.Send(header, msg);
             }
         }
     }

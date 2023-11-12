@@ -4,12 +4,6 @@ using System.Text;
 
 namespace Server_Homework
 {
-    public enum PayloadTag
-    {
-        info,
-        msg,
-    }
-
     public enum SendType
     {
         broadCast = 1,
@@ -17,16 +11,23 @@ namespace Server_Homework
         uniCast,
     }
 
-    interface IPayload
+    public enum PayloadTag
     {
-        public abstract Memory<byte> Serialize(Header header);
-        public abstract bool TryDeserialize(Header header, Memory<byte> buffer);
+        initInfo,
+        msgInfo,
+        msg,
+    }
+
+    public interface IPayload
+    {
+        Memory<byte> Serialize(Header header);
+        bool TryDeserialize(int payloadLength, Memory<byte> buffer);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Header
     {
-        public static readonly int headerSize = Unsafe.SizeOf<Header>();
+        public static readonly int headerLength = Unsafe.SizeOf<Header>();
 
         public int payloadLength;
         public int payloadTag;
@@ -40,11 +41,11 @@ namespace Server_Homework
         public unsafe Memory<byte> Serialize()
         {
             Header header = this;
-            byte[] headerByte = new byte[headerSize];
+            byte[] headerByte = new byte[headerLength];
 
             fixed (byte* headerBytes = headerByte)
             {
-                Buffer.MemoryCopy(&header, headerBytes, headerSize, headerSize);
+                Buffer.MemoryCopy(&header, headerBytes, headerLength, headerLength);
             }
 
             return new Memory<byte>(headerByte);
@@ -52,12 +53,59 @@ namespace Server_Homework
 
         public unsafe bool TryDeserialize(Memory<byte> buffer)
         {
-            if (buffer.Length < headerSize)
+            if (buffer.Length < headerLength)
                 return false;
 
-            fixed (byte* headerPtr = buffer.Span)
+            try
             {
-                this = *(Header*)headerPtr;
+                fixed (byte* headerPtr = buffer.Span)
+                {
+                    this = *(Header*)headerPtr;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct InitData : IPayload
+    {
+        public static readonly int initDataLength = Unsafe.SizeOf<InitData>();
+
+        public int myUserId;
+
+        public InitData(int id)
+        {
+            myUserId = id;
+        }
+
+        public unsafe Memory<byte> Serialize(Header header)
+        {
+            InitData initInfo = this;
+            byte[] headerByte = new byte[header.payloadLength];
+
+            fixed (byte* headerBytes = headerByte)
+            {
+                Buffer.MemoryCopy(&initInfo, headerBytes, header.payloadLength, header.payloadLength);
+            }
+
+            return new Memory<byte>(headerByte);
+        }
+
+        public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
+        {
+            //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
+            if (buffer.Length < payloadLength)
+                return false;
+
+            fixed (byte* initInfoPtr = buffer.Span)
+            {
+                this = *(InitData*)initInfoPtr;
             }
             return true;
         }
@@ -66,6 +114,8 @@ namespace Server_Homework
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct MessageInfo : IPayload
     {
+        public static readonly int msgInfoLength = Unsafe.SizeOf<MessageInfo>();
+
         public int userId;
         public int sendType;
 
@@ -88,15 +138,15 @@ namespace Server_Homework
             return new Memory<byte>(headerByte);
         }
 
-        public unsafe bool TryDeserialize(Header header, Memory<byte> buffer)
+        public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
             //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
-            if (buffer.Length < header.payloadLength)
+            if (buffer.Length < payloadLength)
                 return false;
 
-            fixed (byte* headerPtr = buffer.Span)
+            fixed (byte* messageInfoPtr = buffer.Span)
             {
-                this = *(MessageInfo*)headerPtr;
+                this = *(MessageInfo*)messageInfoPtr;
             }
             return true;
         }
@@ -112,16 +162,16 @@ namespace Server_Homework
             message = msg;
         }
 
-        public unsafe Memory<byte> Serialize(Header header)
+        public Memory<byte> Serialize(Header header)
         {
-            var messageEncodingValue = Encoding.UTF8.GetBytes(message, header.payloadLength);
+            var messageEncodingValue = Encoding.UTF8.GetBytes(message, 0, header.payloadLength);
 
             return new Memory<byte>(messageEncodingValue);
         }
 
-        public unsafe bool TryDeserialize(Header header ,Memory<byte> buffer)
+        public bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
-            if (buffer.Length < header.payloadLength)
+            if (buffer.Length < payloadLength)
                 return false;
 
             message = Encoding.UTF8.GetString(buffer.Span);

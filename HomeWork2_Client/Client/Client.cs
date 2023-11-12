@@ -1,24 +1,27 @@
 ﻿using System;
-using System.Diagnostics.SymbolStore;
+using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace Server_Homework
 {
     public class Client
     {
-        private const int BUFFER_SIZE = 8;
-        private const int READ_SIZE = 2;
+        private const int BUFFER_SIZE = 1024;
+        private const int READ_SIZE = 128;
 
         private int myId;
         private Socket mySocket;
-
-        private Dictionary<PayloadTag, Action<Memory<byte>>> PayloadCallback = new Dictionary<PayloadTag, Action<Memory<byte>>>();
+        private StringBuilder myStringBuilder;
+        
+        private Dictionary<int, Action<int, Memory<byte>>> payloadCallback = new Dictionary<int, Action<int, Memory<byte>>>();
 
         public async void CreateSocket()
         {
+            _AddCallBackProcess();
+
+            myStringBuilder = new StringBuilder();
             mySocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             try
@@ -47,14 +50,17 @@ namespace Server_Homework
             }
         }
 
-        public async Task Send<T>(Header header, T payload) where T : IMarshal
+        public async Task Send<T>(Header header, T payload) where T : IPayload
         {
-            
-
             try
             {
-                //확장 메서드
-                await mySocket.SendAsync(header, data);
+                //info payload
+                Header infoHeader = new Header(MessageInfo.msgInfoLength, (int)PayloadTag.msgInfo);
+                MessageInfo msgInfo = new MessageInfo(myId, (int)SendType.broadCast);
+                await mySocket.SendAsync(infoHeader, msgInfo);
+
+                //msg payload
+                await mySocket.SendAsync(header, payload);
             }
             catch (Exception e)
             {
@@ -80,48 +86,93 @@ namespace Server_Homework
                 totalRecvByte += await mySocket.ReceiveAsync(readBuffer.Slice(totalRecvByte, READ_SIZE),
                         SocketFlags.None);
 
-                while (Header.headerSize < totalRecvByte)
+                while (readOffset + Header.headerLength < totalRecvByte)
                 {
                     Header header = new Header();
 
-                    // 데이터가 깨진 상태에 대한 예외 처리 필요.
-                    if (false == header.TryDeserialize(readBuffer.Slice(readOffset, totalRecvByte)))
+                    // 수신 데이터가 이상하여 역직렬화가 안된 상태(악성 패킷 || 패킷 깨짐)
+                    if (false == header.TryDeserialize(readBuffer.Slice(readOffset, Header.headerLength)))
                     {
+                        mySocket.SocketDisconnect();
                         break;
                     }
 
-                    if (totalRecvByte < header.messageLength)
+                    // 아직 페이로드 크기만큼 데이터가 안들어온 상태(리턴)
+                    if (totalRecvByte - Header.headerLength < header.payloadLength)
                     {
                         break;
                     }
-
 
                     // callback 내에서 throw 하는 경우는 ???
-                    this.Callback(header.payloadTag, header.payloadLength);
+                    _PayloadCallBack(ref header, readBuffer.Slice(readOffset + Header.headerLength, header.payloadLength));
 
-                    readOffset += Header.headerSize + header.payloadLength;
+                    readOffset += Header.headerLength + header.payloadLength;
                 }
             }
         }
 
-        private void _PayloadCallBack(PayloadTag tag, Memory<byte> buffer)
+        private void _PayloadCallBack(ref Header header, Memory<byte> buffer)
         {
-            if (false == PayloadCallback.TryGetValue(tag, out var Callback))
+            if (false == payloadCallback.TryGetValue(header.payloadTag, out var Callback))
             {
                 throw new Exception();
             }
 
-            Callback(buffer);
+            Callback(header.payloadLength, buffer);
         }
 
-        private void _MessageInfoProcess(Memory<byte> buffer, Header header)
+        private void _InitInfoProcess(int initInfoLength, Memory<byte> buffer)
         {
-            MessageInfo.TryParseDataInfo(buffer, out var messageInfo);
+            InitData initInfo = new InitData();
+            if (false == initInfo.TryDeserialize(initInfoLength, buffer))
+            {
+                Console.WriteLine($"{initInfo.GetType()} Deserialize Error");
+            }
+
+            myId = initInfo.myUserId;
+            Console.WriteLine($"Welcome UserId {myId}");
         }
 
-        private void _MessageProcess(Memory<byte> buffer, Header header)
+        private void _MessageInfoProcess(int msgInfoLength, Memory<byte> buffer)
         {
-            Message.TryParseMessage(buffer, header.payloadLength, out var message);   
+            MessageInfo msgInfo = new MessageInfo();
+            if (false == msgInfo.TryDeserialize(msgInfoLength, buffer))
+            {
+                Console.WriteLine($"{msgInfo.GetType()} Deserialize Error");
+            }
+
+            myStringBuilder.Clear();
+
+            myStringBuilder.Append($"Receive:{msgInfo.userId}({msgInfo.sendType.ToString()}) -> ");
+        }
+
+        private void _MessageProcess(int msgLength, Memory<byte> buffer)
+        {
+            Message msg = new Message();
+            if (false == msg.TryDeserialize(msgLength, buffer))
+            {
+                Console.WriteLine($"{msg.GetType()} Deserialize Error");
+            }
+
+            myStringBuilder.Append(msg.message);
+            Console.WriteLine(myStringBuilder.ToString());
+
+            myStringBuilder.Clear();
+        }   
+
+        private void _AddCallBackProcess()
+        {
+            try
+            {
+                payloadCallback.Add((int)PayloadTag.initInfo, _InitInfoProcess);
+                payloadCallback.Add((int)PayloadTag.msgInfo, _MessageInfoProcess);
+                payloadCallback.Add((int)PayloadTag.msg, _MessageProcess);
+            }
+            catch(Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
     }
+
 }

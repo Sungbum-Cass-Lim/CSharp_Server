@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Server_Homework
@@ -15,10 +16,8 @@ namespace Server_Homework
         private List<ClientSocket> clientSocketList = new List<ClientSocket>();
         private ConcurrentDictionary<int, ClientSocket> clientSocketDictionary = new ConcurrentDictionary<int, ClientSocket>();
 
-        #region Server Start
         public void Initialize()
         {
-            AppDomain.CurrentDomain.ProcessExit += new EventHandler(_ProcessCloseEvent);
             Console.WriteLine("Server State: Start");
 
             serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -35,9 +34,7 @@ namespace Server_Homework
             serverSocket.Listen(5);
             AcceptLoop(); // Accept Loop
         }
-        #endregion
 
-        #region ServerAsyncFunc
         public async void AcceptLoop()
         {
             while (true)
@@ -56,8 +53,11 @@ namespace Server_Homework
 
                 if (clientSocketDictionary.TryAdd(iDCount, NewClientSocket))
                 {
+                    Header header = new Header(InitData.initDataLength, (int)PayloadTag.initInfo);
+                    InitData payload = new InitData(iDCount);
+
                     clientSocketList.Add(NewClientSocket); // ConcurrentDictionary를 통해 lock
-                    await NewClientSocket.Send(iDCount, "Welcome Bro"); // 클라 첫 접속 메세지
+                    await NewClientSocket.Send(header, payload); // 클라 첫 접속 메세지
 
                     iDCount++;
                 }
@@ -67,43 +67,23 @@ namespace Server_Homework
                 throw new Exception(e.Message);
             }
         }
-        #endregion
 
-        public async Task Unicast(int id, string msg) // 지정 전송
+        public async void BroadCast<T>(Header header, T payload) where T : IPayload
         {
-            await clientSocketDictionary[id].Send(id, msg);
+           foreach (var clientSocket in clientSocketList) 
+           {
+                await clientSocket.Send(header, payload);
+           }
         }
 
-        public async Task Broadcast(int id, string msg) // 모두 전송
+        public void MultiCast()
         {
-            foreach (ClientSocket ClientSocket in clientSocketList)
-            {
-                await ClientSocket.Send(id, msg);
-            }
+
         }
 
-        public async Task Multicast(int id, string msg) // 해당 id 빼고 모두 전송
+        public void Unicast()
         {
-            foreach (ClientSocket ClientSocket in clientSocketList)
-            {
-                if (ClientSocket.GetId() != id)
-                {
-                    await ClientSocket.Send(id, msg);
-                }
-            }
-        }
 
-        public void RemoveClientSocketData(int socketId)
-        {
-            if(clientSocketDictionary.TryRemove(socketId, out var clientSocket))
-            {
-                clientSocketList.Remove(clientSocket);
-            }
-        }
-
-        private async void _ProcessCloseEvent(object? sender, EventArgs e)
-        {
-            await Broadcast(9999, "Q");
         }
     }
 }

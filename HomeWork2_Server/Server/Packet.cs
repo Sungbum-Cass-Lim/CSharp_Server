@@ -1,10 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.SymbolStore;
-using System.Dynamic;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -13,83 +7,174 @@ namespace Server_Homework
     public enum SendType
     {
         broadCast = 1,
-        multiCast = 2,
-        uniCast = 3,
+        multiCast,
+        uniCast,
+    }
+
+    public enum PayloadTag
+    {
+        initInfo,
+        msgInfo,
+        msg,
+    }
+
+    public interface IPayload
+    {
+        Memory<byte> Serialize(Header header);
+        bool TryDeserialize(int payloadLength, Memory<byte> buffer);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Header
     {
-        public static readonly int HeaderSize = Unsafe.SizeOf<Header>();
+        public static readonly int headerLength = Unsafe.SizeOf<Header>();
 
-        public int messageLength;
-        public int messageId;
+        public int payloadLength;
+        public int payloadTag;
 
-
-
-
-
-
-        public int ownerId;
-        public SendType sendType;
-
-        public Header(int msgLength, int id, SendType type)
+        public Header(int payloadLength, int payloadTag)
         {
-            messageLength = msgLength;
-            ownerId = id;
-            sendType = type;
+            this.payloadLength = payloadLength;
+            this.payloadTag = payloadTag;
         }
 
         public unsafe Memory<byte> Serialize()
         {
-            Header targetHeader = this;
-            byte[] headerByte = new byte[HeaderSize];
+            Header header = this;
+            byte[] headerByte = new byte[headerLength];
 
             fixed (byte* headerBytes = headerByte)
             {
-                Buffer.MemoryCopy(&targetHeader, headerBytes, HeaderSize, HeaderSize);
+                Buffer.MemoryCopy(&header, headerBytes, headerLength, headerLength);
             }
 
             return new Memory<byte>(headerByte);
         }
 
-        //불필요한 Header재생성을 막기 위해 outX(※ Dictionary의 TryAdd참고)
-        public unsafe bool TryDeserialize(Memory<byte> readBuffer)
+        public unsafe bool TryDeserialize(Memory<byte> buffer)
         {
-            if (readBuffer.Length < HeaderSize)
+            if (buffer.Length < headerLength)
                 return false;
 
-            fixed (byte* headerPtr = readBuffer.Span)
+            try
             {
-                this = *(Header*)headerPtr;
+                fixed (byte* headerPtr = buffer.Span)
+                {
+                    this = *(Header*)headerPtr;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct InitData : IPayload
+    {
+        public static readonly int initDataLength = Unsafe.SizeOf<InitData>();
+
+        public int myUserId;
+
+        public InitData(int id)
+        {
+            myUserId = id;
+        }
+
+        public unsafe Memory<byte> Serialize(Header header)
+        {
+            InitData initInfo = this;
+            byte[] headerByte = new byte[header.payloadLength];
+
+            fixed (byte* headerBytes = headerByte)
+            {
+                Buffer.MemoryCopy(&initInfo, headerBytes, header.payloadLength, header.payloadLength);
+            }
+
+            return new Memory<byte>(headerByte);
+        }
+
+        public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
+        {
+            //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
+            if (buffer.Length < payloadLength)
+                return false;
+
+            fixed (byte* initInfoPtr = buffer.Span)
+            {
+                this = *(InitData*)initInfoPtr;
             }
             return true;
         }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct Data
+    public struct MessageInfo : IPayload
+    {
+        public static readonly int msgInfoLength = Unsafe.SizeOf<MessageInfo>();
+
+        public int userId;
+        public int sendType;
+
+        public MessageInfo(int id, int type)
+        {
+            userId = id;
+            sendType = type;
+        }
+
+        public unsafe Memory<byte> Serialize(Header header)
+        {
+            MessageInfo messageInfo = this;
+            byte[] headerByte = new byte[header.payloadLength];
+
+            fixed (byte* headerBytes = headerByte)
+            {
+                Buffer.MemoryCopy(&messageInfo, headerBytes, header.payloadLength, header.payloadLength);
+            }
+
+            return new Memory<byte>(headerByte);
+        }
+
+        public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
+        {
+            //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
+            if (buffer.Length < payloadLength)
+                return false;
+
+            fixed (byte* messageInfoPtr = buffer.Span)
+            {
+                this = *(MessageInfo*)messageInfoPtr;
+            }
+            return true;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct Message : IPayload
     {
         public string message;
 
-        public Data(string msg)
+        public Message(string msg)
         {
             message = msg;
         }
 
-        public Memory<byte> Serialize()
+        public Memory<byte> Serialize(Header header)
         {
-            var messageEncodingValue = Encoding.UTF8.GetBytes(message);
+            var messageEncodingValue = Encoding.UTF8.GetBytes(message, 0, header.payloadLength);
 
             return new Memory<byte>(messageEncodingValue);
         }
 
-        public bool TryDeserialize(Memory<byte> readBuffer, int msgLength)
+        public bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
-            if (readBuffer.Length < msgLength)
+            if (buffer.Length < payloadLength)
                 return false;
 
-            message = Encoding.UTF8.GetString(readBuffer.Span);
+            message = Encoding.UTF8.GetString(buffer.Span);
             return true;
         }
     }
