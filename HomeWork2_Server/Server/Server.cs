@@ -52,6 +52,8 @@ namespace Server_Homework
 
                 if (clientSocketDictionary.TryAdd(iDCount, NewClientSocket))
                 {
+                    var _ = _StartReceive(NewClientSocket);
+
                     Header header = new Header(InitData.initDataLength, (int)PayloadTag.initInfo);
                     InitData payload = new InitData(iDCount);
 
@@ -63,7 +65,26 @@ namespace Server_Homework
             }
             catch (Exception e)
             {
+                //Console.WriteLine(e.ToString());
+                //throw;
                 throw new Exception(e.Message);
+            }
+        }
+
+        private async Task _StartReceive(ClientSocket socket)
+        {
+            try
+            {
+                await socket.ReceiveLoopAsync();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                socket.Close();
+                //clientSocketDictionary.Remove(socket);
             }
         }
 

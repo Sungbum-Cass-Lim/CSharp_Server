@@ -47,7 +47,7 @@ namespace Server_Homework
             mySocket = socket;
             myStringBuilder = new StringBuilder();
 
-            _ReceiveLoopAsync();
+            //var _ = _ReceiveLoopAsync();
         }
 
         public int GetId() => myId;
@@ -66,7 +66,12 @@ namespace Server_Homework
             }
         }
 
-        private async void _ReceiveLoopAsync()
+        public void Close()
+        {
+
+        }
+
+        public async Task ReceiveLoopAsync()
         {
             Memory<byte> readBuffer = new Memory<byte>(new byte[BUFFER_SIZE]);
 

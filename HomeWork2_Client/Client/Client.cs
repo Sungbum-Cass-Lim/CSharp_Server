@@ -64,6 +64,8 @@ namespace Server_Homework
                 //확장 메서드
                 await mySocket.SendAsync(header, payload);
             }
+            catch (ObjectDisposedException e) { }
+            catch (SocketException e) { }
             catch (Exception e)
             {
                 Console.WriteLine(e);

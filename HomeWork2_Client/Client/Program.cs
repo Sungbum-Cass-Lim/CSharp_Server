@@ -8,27 +8,45 @@ namespace Server_Homework
     {
         static async Task Main(string[] args)
         {
-            Client mainClient = new Client();
-            mainClient.ConnectAsync();
-
             while (true)
             {
-                string inputMsg = Console.ReadLine();
+                Console.WriteLine("Connect to xxxxxx [ENTER]");
+                Console.ReadKey();
 
-                if(inputMsg == "Q" || inputMsg == "q")
+                Client mainClient = new Client();
+                mainClient.ConnectAsync();
+
+                while (true)
                 {
-                    mainClient.SocketDisconnect();
-                    break;
+                    string inputMsg = Console.ReadLine();
+
+                    if (inputMsg == "Q" || inputMsg == "q")
+                    {
+                        mainClient.SocketDisconnect();
+                        break;
+                    }
+
+                    //info payload
+                    Header infoHeader = new Header(MessageInfo.msgInfoLength, PayloadTag.msgInfo);
+                    MessageInfo msgInfo = new MessageInfo(mainClient.GetId(), SendType.broadCast);
+                    var sentBytes = await mainClient.Send(infoHeader, msgInfo);
+                    if (sentBytes <= 0)
+                    {
+                        break;
+                    }
+
+                    Header msgHeader = new Header(inputMsg.Length, PayloadTag.msg);
+                    Message msg = new Message(inputMsg);
+
+                    try
+                    {
+                        await mainClient.Send(msgHeader, msg);
+                    }
+                    catch (Exception e)
+                    {
+                        break;
+                    }
                 }
-
-                //info payload
-                Header infoHeader = new Header(MessageInfo.msgInfoLength, PayloadTag.msgInfo);
-                MessageInfo msgInfo = new MessageInfo(mainClient.GetId(), SendType.broadCast);
-                await mainClient.Send(infoHeader, msgInfo);
-
-                Header msgHeader = new Header(inputMsg.Length, PayloadTag.msg);
-                Message msg = new Message(inputMsg);
-                await mainClient.Send(msgHeader, msg);
             }
         }
     }
