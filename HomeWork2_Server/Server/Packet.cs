@@ -13,6 +13,7 @@ namespace Server_Homework
 
     public enum PayloadTag
     {
+        //testTag,
         initInfo,
         msgInfo,
         msg,
@@ -30,9 +31,9 @@ namespace Server_Homework
         public static readonly int headerLength = Unsafe.SizeOf<Header>();
 
         public int payloadLength;
-        public int payloadTag;
+        public PayloadTag payloadTag;
 
-        public Header(int payloadLength, int payloadTag)
+        public Header(int payloadLength, PayloadTag payloadTag)
         {
             this.payloadLength = payloadLength;
             this.payloadTag = payloadTag;
@@ -53,9 +54,14 @@ namespace Server_Homework
 
         public unsafe bool TryDeserialize(Memory<byte> buffer)
         {
-            if (buffer.Length < headerLength)
+            //받아온 데이터 사이즈 체크
+            if (buffer.Length > headerLength)
+            {
+                Console.WriteLine("Big Header Error");
                 return false;
+            }
 
+            //데이터 깨짐 체크
             try
             {
                 fixed (byte* headerPtr = buffer.Span)
@@ -65,6 +71,7 @@ namespace Server_Homework
             }
             catch
             {
+                Console.WriteLine("Broken Header Error");
                 return false;
             }
 
@@ -99,14 +106,27 @@ namespace Server_Homework
 
         public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
-            //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
-            if (buffer.Length < payloadLength)
-                return false;
-
-            fixed (byte* initInfoPtr = buffer.Span)
+            //데이터 사이즈 체크
+            if (payloadLength != initDataLength || buffer.Length > payloadLength)
             {
-                this = *(InitData*)initInfoPtr;
+                Console.WriteLine("Big InitData Error");
+                return false;
             }
+
+            //데이터 깨짐 체크
+            try
+            {
+                fixed (byte* initInfoPtr = buffer.Span)
+                {
+                    this = *(InitData*)initInfoPtr;
+                }
+            }
+            catch
+            {
+                Console.WriteLine("Broken InitData Error");
+                return false;
+            }
+
             return true;
         }
     }
@@ -117,9 +137,9 @@ namespace Server_Homework
         public static readonly int msgInfoLength = Unsafe.SizeOf<MessageInfo>();
 
         public int userId;
-        public int sendType;
+        public SendType sendType;
 
-        public MessageInfo(int id, int type)
+        public MessageInfo(int id, SendType type)
         {
             userId = id;
             sendType = type;
@@ -140,14 +160,26 @@ namespace Server_Homework
 
         public unsafe bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
-            //엄청 큰 버퍼나 악의적으로 들어오는 버퍼에 대한 예외처리가 되있어야 함
-            if (buffer.Length < payloadLength)
-                return false;
 
-            fixed (byte* messageInfoPtr = buffer.Span)
+            if (payloadLength != msgInfoLength || buffer.Length > payloadLength)
             {
-                this = *(MessageInfo*)messageInfoPtr;
+                Console.WriteLine("Big MessageInfo Error");
+                return false;
             }
+
+            try
+            {
+                fixed (byte* messageInfoPtr = buffer.Span)
+                {
+                    this = *(MessageInfo*)messageInfoPtr;
+                }
+            }
+            catch
+            {
+                Console.WriteLine("Broken MessageInfo Error");
+                return false;
+            }
+
             return true;
         }
     }
@@ -155,6 +187,8 @@ namespace Server_Homework
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Message : IPayload
     {
+        public static readonly int MaxMessageLength = 4096;
+
         public string message;
 
         public Message(string msg)
@@ -171,10 +205,22 @@ namespace Server_Homework
 
         public bool TryDeserialize(int payloadLength, Memory<byte> buffer)
         {
-            if (buffer.Length < payloadLength)
+            if (payloadLength > MaxMessageLength || buffer.Length > payloadLength)
+            {
+                Console.WriteLine("Big Message Error");
                 return false;
+            }
 
-            message = Encoding.UTF8.GetString(buffer.Span);
+            try
+            {
+                message = Encoding.UTF8.GetString(buffer.Span);
+            }
+            catch
+            {
+                Console.WriteLine("Broken Message Error");
+                return false;
+            }
+
             return true;
         }
     }

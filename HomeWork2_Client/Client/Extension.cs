@@ -17,12 +17,6 @@ namespace Server_Homework
 
             return socket.SendAsync(packetBuffer, SocketFlags.None);
         }
-
-        public static void SocketDisconnect(this Socket socket)
-        {
-            socket.Shutdown(SocketShutdown.Both);
-            socket.Close();
-        }
     }
 
     //버퍼 관련 Extension Method

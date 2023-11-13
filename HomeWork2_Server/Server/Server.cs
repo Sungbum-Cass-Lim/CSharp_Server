@@ -48,8 +48,7 @@ namespace Server_Homework
         {
             try
             {
-                ClientSocket NewClientSocket;
-                NewClientSocket = new ClientSocket().Initialize(this, iDCount, await serverSocket.AcceptAsync());
+                ClientSocket NewClientSocket = new ClientSocket(this, iDCount, await serverSocket.AcceptAsync());
 
                 if (clientSocketDictionary.TryAdd(iDCount, NewClientSocket))
                 {
@@ -62,7 +61,7 @@ namespace Server_Homework
                     iDCount++;
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 throw new Exception(e.Message);
             }
@@ -70,20 +69,18 @@ namespace Server_Homework
 
         public async void BroadCast<T>(Header header, T payload) where T : IPayload
         {
-           foreach (var clientSocket in clientSocketList) 
-           {
+            foreach(var clientSocket in clientSocketList)
+            {
                 await clientSocket.Send(header, payload);
-           }
+            }
         }
 
-        public void MultiCast()
+        public void RemoveClientSocket(int socketId)
         {
-
-        }
-
-        public void Unicast()
-        {
-
+            if(clientSocketDictionary.TryRemove(socketId, out var clientSocket))
+            {
+                clientSocketList.Remove(clientSocket);
+            }
         }
     }
 }

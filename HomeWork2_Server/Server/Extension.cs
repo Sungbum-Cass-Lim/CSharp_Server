@@ -30,9 +30,16 @@ namespace Server_Homework
     {
         public static Memory<byte> MultiplyBufferSize(this Memory<byte> buffer, int multipleValue = 2)
         {
-            var resizeBuffer = new Memory<byte>(new byte[buffer.Length * multipleValue]);
-            buffer.CopyTo(resizeBuffer);
-            return resizeBuffer;
+            try
+            {
+                var resizeBuffer = new Memory<byte>(new byte[buffer.Length * multipleValue]);
+                buffer.CopyTo(resizeBuffer);
+                return resizeBuffer;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
         }
     }
 }
