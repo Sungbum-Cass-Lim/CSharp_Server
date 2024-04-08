@@ -38,7 +38,7 @@ namespace Server_Homework
 
         public void Initialize()
         {
-            Console.WriteLine("Server State: Bind");
+            Console.WriteLine("Server State: Binddddd");
 
             ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             ServerSocket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7000));
