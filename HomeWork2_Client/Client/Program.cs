@@ -29,11 +29,11 @@ namespace Server_Homework
                     //info payload
                     Header infoHeader = new Header(MessageInfo.msgInfoLength, PayloadTag.msgInfo);
                     MessageInfo msgInfo = new MessageInfo(mainClient.GetId(), SendType.broadCast);
-                    var sentBytes = await mainClient.Send(infoHeader, msgInfo);
-                    if (sentBytes <= 0)
-                    {
-                        break;
-                    }
+                    await mainClient.Send(infoHeader, msgInfo);
+                    //if (sentBytes <= 0)
+                    //{
+                    //    break;
+                    //}
 
                     Header msgHeader = new Header(inputMsg.Length, PayloadTag.msg);
                     Message msg = new Message(inputMsg);
